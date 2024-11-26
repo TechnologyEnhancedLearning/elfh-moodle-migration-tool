@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "Moodle-Migration": {
+      "commandName": "Project"
+    }
+  }
+}
