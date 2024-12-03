@@ -98,15 +98,16 @@ namespace Moodle_Migration
         private void ShowAllHelp()
         {
             Console.WriteLine("Available actions:");
-            Console.WriteLine("-h, --help                            - Show help information");
-            Console.WriteLine("-h, --help {option}                   - Show help information for specific option");
-            Console.WriteLine("                                      - -u, --user");
-            Console.WriteLine("                                      - -c, --course");
-            Console.WriteLine("                                      - -ct, --category");
-            Console.WriteLine("-u, --user {operation} {parameters}   - Perform user operation (details or create) with specified parameters");
-            Console.WriteLine("-c, --course {operation} {parameters} - Perform course operation (details or create) with specified parameters");
-            Console.WriteLine("    Available operations              - -d, --display");
-            Console.WriteLine("                                      - -c, --create");
+            Console.WriteLine("-h, --help                               - Show help information");
+            Console.WriteLine("-h, --help {option}                      - Show help information for specific option");
+            Console.WriteLine("                                         - -u, --user");
+            Console.WriteLine("                                         - -c, --course");
+            Console.WriteLine("                                         - -ct, --category");
+            Console.WriteLine("-u, --user {operation} {parameters}      - Perform user operation (details or create) with specified parameters");
+            Console.WriteLine("-c, --course {operation} {parameters}    - Perform course operation (detail) with specified parameters");
+            Console.WriteLine("-ct, --category {operation} {parameters} - Perform course operation (create) with specified parameters");
+            Console.WriteLine("    Available operations                 - -d, --display");
+            Console.WriteLine("                                         - -c, --create");
             Console.WriteLine();
             ShowUserHelp();
             ShowCourseHelp();
@@ -133,7 +134,6 @@ namespace Moodle_Migration
             Console.WriteLine("                       - shortname={string} course short name");
             Console.WriteLine("                       - category={int}     category id the course belongs to");
             Console.WriteLine("                       - sectionid={int}    section id that belongs to a course");
-            Console.WriteLine("-c -c                  - TODO");
             Console.WriteLine();
         }
 

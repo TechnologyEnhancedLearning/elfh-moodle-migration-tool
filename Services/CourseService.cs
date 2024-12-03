@@ -22,7 +22,7 @@ namespace Moodle_Migration.Services
                     break;
                 case "-c":
                 case "--create":
-                    Console.WriteLine("Create course - NOT YET IMPLEMENTED");
+                    Console.WriteLine("Course creation is part of category child creation (-ct -c).");
                     break;
                 default:
                     Console.WriteLine("Invalid course option!");
