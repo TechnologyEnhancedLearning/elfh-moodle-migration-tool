@@ -3,6 +3,6 @@
     public interface IHttpService
     {
         Task Get(string url);
-        Task Post(string url);
+        Task<int> Post(string url, Dictionary<string, string> parameters);
     }
 }

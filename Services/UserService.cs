@@ -168,52 +168,71 @@ namespace Moodle_Migration.Services
             await httpService.Get(url);
         }
 
-        private async Task CreateMoodleCohort(ElfhUserGroup elfhUserGroup)
+        private async Task<int> CreateMoodleCohort(ElfhUserGroup elfhUserGroup)
         {
-            string additionalParameters = string.Empty;
-            additionalParameters += "&cohorts[0][categorytype][type]=system";
-            additionalParameters += "&cohorts[0][categorytype][value]=";
-            additionalParameters += $"&cohorts[0][name]={elfhUserGroup.UserGroupName}";
-            additionalParameters += $"&cohorts[0][idnumber]=elfh-{elfhUserGroup.UserGroupId}";
-            additionalParameters += $"&cohorts[0][description]={elfhUserGroup.UserGroupDescription}";
-            additionalParameters += "&cohorts[0][descriptionformat]=1";
-            additionalParameters += "&cohorts[0][visible]=1";
-            additionalParameters += "&cohorts[0][theme]=";
-            //additionalParameters += "&cohorts[0][customfields][0][shortname]=";
-            //additionalParameters += "&cohorts[0][customfields][0][value]=";
+            if (elfhUserGroup == null)
+            {
+                Console.WriteLine("User group not found!");
+                return 0;
+            }
+            else
+            {
+                Dictionary<string, string> parameters = new Dictionary<string, string>
+                {
+                    { "cohorts[0][categorytype][type]", "system" },
+                    { "cohorts[0][categorytype][value]", "" },
+                    { "cohorts[0][name]", elfhUserGroup.UserGroupName },
+                    { "cohorts[0][idnumber]", $"elfh-{elfhUserGroup.UserGroupId}" },
+                    { "cohorts[0][description]", elfhUserGroup.UserGroupDescription },
+                    { "cohorts[0][descriptionformat]", "1" },
+                    { "cohorts[0][visible]", "1" },
+                    { "cohorts[0][theme]", "" }
+                };
 
-            Console.WriteLine($"Creating cohort '{elfhUserGroup.UserGroupName}'");
-            string url = $"&wsfunction=core_cohort_create_cohorts{additionalParameters}";
+                string url = $"&wsfunction=core_cohort_create_cohorts";
 
-            await httpService.Get(url);
+                var cohortId = await httpService.Post(url, parameters);
+                if (cohortId > 0)
+                {
+                    Console.WriteLine($"Cohort '{elfhUserGroup.UserGroupName}' created in Moodle");
+                }
+                else
+                {
+                    Console.WriteLine($"FAILED to create Cohort '{elfhUserGroup.UserGroupName}' in Moodle");
+                }
+                return cohortId;
+            }
         }
 
-        private async Task CreateElfhUser(ElfhUser? elfhUser)
+        private async Task<int> CreateElfhUser(ElfhUser? elfhUser)
         {
             if (elfhUser == null)
             {
                 Console.WriteLine("User not found!");
+                return 0;
             }
             else
             {
-                string additionalParameters = string.Empty;
-                additionalParameters += "&users[0][createpassword]=1";
-                additionalParameters += $"&users[0][username]={elfhUser.UserName.ToLower()}";
-                additionalParameters += $"&users[0][email]={elfhUser.EmailAddress}";
-                additionalParameters += "&users[0][auth]=manual";
-                additionalParameters += $"&users[0][firstname]={elfhUser.FirstName}";
-                additionalParameters += $"&users[0][lastname]={elfhUser.LastName}";
-                additionalParameters += "&users[0][maildisplay]=1";
-                additionalParameters += "&users[0][description]=";
-                additionalParameters += "&users[0][department]=";
-                additionalParameters += "&users[0][lang]=en";
-                additionalParameters += "&users[0][theme]=";
-                additionalParameters += "&users[0][mailformat]=1";
+                Dictionary<string, string> parameters = new Dictionary<string, string>
+                {
+                    { "users[0][createpassword]", "1" },
+                    { "users[0][username]", elfhUser.UserName.ToLower() },
+                    { "users[0][email]", elfhUser.EmailAddress },
+                    { "users[0][auth]", "manual" },
+                    { "users[0][firstname]", elfhUser.FirstName },
+                    { "users[0][lastname]", elfhUser.LastName },
+                    { "users[0][maildisplay]", "1" },
+                    { "users[0][description]", "" },
+                    { "users[0][department]", "" },
+                    { "users[0][lang]", "en" },
+                    { "users[0][theme]", "" },
+                    { "users[0][mailformat]", "1" }
+                };
 
-                string url = $"&wsfunction=core_user_create_users{additionalParameters}";
+                string url = $"&wsfunction=core_user_create_users";
 
                 Console.WriteLine($"Creating user '{elfhUser.UserName}'");
-                await httpService.Get(url);
+                return await httpService.Post(url, parameters);
             }
         }
     }

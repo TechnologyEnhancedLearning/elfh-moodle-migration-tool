@@ -54,5 +54,6 @@ class Program
         // Register data repositories
         services.AddTransient<IUserRepository, UserRepository>();
         services.AddTransient<IUserGroupRepository, UserGroupRepository>();
+        services.AddTransient<IComponentRepository, ComponentRepository>();
     }
 }

@@ -95,40 +95,6 @@ namespace Moodle_Migration
             }
         }
 
-        private void ShowCategoryHelp()
-        {
-            Console.WriteLine("Category actions");
-            Console.WriteLine("-ct -d                                           - Display all categories without filtering");
-            Console.WriteLine("-u -d {property1}={value1} {property2}={value2}  - Display categories filtering by properties");
-            Console.WriteLine();
-        }
-
-        private void ShowCourseHelp()
-        {
-            Console.WriteLine("Course actions");
-            Console.WriteLine("-c -d                  - Display all courses without filtering");
-            Console.WriteLine("-c -d {field}={value}  - Display courses filtering by specific field");
-            Console.WriteLine("                       - id={int}           course id");
-            Console.WriteLine("                       - ids={int,int,int}  comma separated course ids");
-            Console.WriteLine("                       - shortname={string} course short name");
-            Console.WriteLine("                       - category={int}     category id the course belongs to");
-            Console.WriteLine("                       - sectionid={int}    section id that belongs to a course");
-            Console.WriteLine();
-        }
-
-        private void ShowUserHelp()
-        {
-            Console.WriteLine("User actions");
-            Console.WriteLine("-u -d                                            - Display all users without filtering");
-            Console.WriteLine("-u -d {property1}={value1} {property2}={value2}  - Display users filtering by properties");
-            Console.WriteLine("-u -c {parameter}={value}                        - Import Users and/or Cohorts from elfh to Moodle");
-            Console.WriteLine("                                                 - id={int}           import user based on elfh UserId");
-            Console.WriteLine("                                                 - username={string}  import user based on elfh UserName");
-            Console.WriteLine("                                                 - ugid={int}         import user group as Cohort");
-            Console.WriteLine("                                                                      with option to import all users");
-            Console.WriteLine();
-        }
-
         private void ShowAllHelp()
         {
             Console.WriteLine("Available actions:");
@@ -145,6 +111,43 @@ namespace Moodle_Migration
             ShowUserHelp();
             ShowCourseHelp();
             ShowCategoryHelp();
+        }
+
+        private void ShowCategoryHelp()
+        {
+            Console.WriteLine("Category actions");
+            Console.WriteLine("-ct -d                                           - Display all categories without filtering");
+            Console.WriteLine("-ct -d {property1}={value1} {property2}={value2} - Display categories filtering by properties");
+            Console.WriteLine("-ct -c id={value}                                - Creates a top level category with the option to create child components");
+            Console.WriteLine("                                                 - id={int} elfh programme component id");
+            Console.WriteLine();
+        }
+
+        private void ShowCourseHelp()
+        {
+            Console.WriteLine("Course actions");
+            Console.WriteLine("-c -d                  - Display all courses without filtering");
+            Console.WriteLine("-c -d {field}={value}  - Display courses filtering by specific field");
+            Console.WriteLine("                       - id={int}           course id");
+            Console.WriteLine("                       - ids={int,int,int}  comma separated course ids");
+            Console.WriteLine("                       - shortname={string} course short name");
+            Console.WriteLine("                       - category={int}     category id the course belongs to");
+            Console.WriteLine("                       - sectionid={int}    section id that belongs to a course");
+            Console.WriteLine("-c -c                  - TODO");
+            Console.WriteLine();
+        }
+
+        private void ShowUserHelp()
+        {
+            Console.WriteLine("User actions");
+            Console.WriteLine("-u -d                                            - Display all users without filtering");
+            Console.WriteLine("-u -d {property1}={value1} {property2}={value2}  - Display users filtering by properties");
+            Console.WriteLine("-u -c {parameter}={value}                        - Import Users and/or Cohorts from elfh to Moodle");
+            Console.WriteLine("                                                 - id={int}           import user based on elfh UserId");
+            Console.WriteLine("                                                 - username={string}  import user based on elfh UserName");
+            Console.WriteLine("                                                 - ugid={int}         import user group as Cohort");
+            Console.WriteLine("                                                                      with option to import all users");
+            Console.WriteLine();
         }
     }
 }

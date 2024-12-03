@@ -2,7 +2,6 @@
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
 using System.Data;
-using System.Net.Mail;
 
 namespace Moodle_Migration.Repositories
 {
