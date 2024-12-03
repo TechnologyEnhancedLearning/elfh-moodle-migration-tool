@@ -1,5 +1,7 @@
+using Microsoft.SqlServer.Server;
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Moodle_Migration.Services
 {
@@ -142,8 +144,13 @@ namespace Moodle_Migration.Services
         private async Task CreateCategoryChildren(ElfhComponent elfhComponent, List<ElfhComponent> elfhChildComponents)
         {
             List<ElfhComponent> children = elfhChildComponents.Where(c => c.ParentComponentId == elfhComponent.ComponentId).ToList();
+            if (children.Count > 0)
+            {
+                Console.WriteLine($"Processing {children.Count} child objects for '{elfhComponent.ComponentName}'");
+            }
             foreach (var elfhChildComponent in children)
             {
+                elfhChildComponent.MoodleParentCategoryId = elfhComponent.MoodleCategoryId;
                 switch ((ComponentTypeEnum)elfhChildComponent.ComponentTypeId)
                 {
                     case ComponentTypeEnum.ClinicalGroup:
@@ -152,7 +159,6 @@ namespace Moodle_Migration.Services
                     case ComponentTypeEnum.Programme:
                     case ComponentTypeEnum.Folder:
                         Console.WriteLine($"Creating {children.Count} child categories for '{elfhComponent.ComponentName}'");
-                        elfhChildComponent.MoodleParentCategoryId = elfhComponent.MoodleCategoryId;
                         elfhChildComponent.MoodleCategoryId = await CreateMoodleCategory(elfhChildComponent);
                         await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
                         break;
@@ -160,12 +166,12 @@ namespace Moodle_Migration.Services
                         Console.WriteLine($"Application '{elfhChildComponent.ComponentName}'");
                         break;
                     case ComponentTypeEnum.Course:
-                        Console.WriteLine($"Course '{elfhChildComponent.ComponentName}'");
-                        // TODO: Create Moodle course
+                        Console.WriteLine($"Creating Course '{elfhChildComponent.ComponentName}'");
+                        await CreateCourse(elfhChildComponent);
                         break;
                     case ComponentTypeEnum.LearningPath:
-                        Console.WriteLine($"Learning path '{elfhChildComponent.ComponentName}'");
-                        // TODO: Create Moodle course
+                        Console.WriteLine($"Creating Course for Learning Path '{elfhChildComponent.ComponentName}'");
+                        await CreateCourse(elfhChildComponent);
                         break;
                     case ComponentTypeEnum.Session:
                         Console.WriteLine($"Session '{elfhChildComponent.ComponentName}'");
@@ -173,6 +179,60 @@ namespace Moodle_Migration.Services
                     default:
                         break;
                 }
+            }
+        }
+
+        private async Task<int> CreateCourse(ElfhComponent elfhComponent)
+        {
+            if (elfhComponent == null)
+            {
+                Console.WriteLine("Elfh component not found!");
+                return 0;
+            }
+            else
+            {
+                Dictionary<string, string> parameters = new Dictionary<string, string>
+                {
+                    { "courses[0][fullname]", elfhComponent.ComponentName },
+                    { "courses[0][shortname]", elfhComponent.ComponentName },
+                    { "courses[0][categoryid]", elfhComponent.MoodleParentCategoryId.ToString() },
+                    { "courses[0][idnumber]", $"elfh-{elfhComponent.ComponentId}" },
+                    { "courses[0][summary]", elfhComponent.ComponentDescription },
+                    { "courses[0][lang]", "en" }
+                };
+
+                //// Potential Course attributes
+                //courses[0][fullname] = string
+                //courses[0][shortname] = string
+                //courses[0][categoryid] = int
+                //courses[0][idnumber] = string
+                //courses[0][summary] = string
+                //courses[0][summaryformat] = int
+                //courses[0][format] = string
+                //courses[0][showgrades] = int
+                //courses[0][newsitems] = int
+                //courses[0][startdate] = int
+                //courses[0][enddate] = int
+                //courses[0][numsections] = int
+                //courses[0][maxbytes] = int
+                //courses[0][showreports] = int
+                //courses[0][visible] = int
+                //courses[0][hiddensections] = int
+                //courses[0][groupmode] = int
+                //courses[0][groupmodeforce] = int
+                //courses[0][defaultgroupingid] = int
+                //courses[0][enablecompletion] = int
+                //courses[0][completionnotify] = int
+                //courses[0][lang] = string
+                //courses[0][forcetheme] = string
+                //courses[0][courseformatoptions][0][name] = string
+                //courses[0][courseformatoptions][0][value] = string
+                //courses[0][customfields][0][shortname] = string
+                //courses[0][customfields][0][value] = string
+
+                string url = "&wsfunction=core_course_create_courses";
+
+                return await httpService.Post(url, parameters);
             }
         }
     }
