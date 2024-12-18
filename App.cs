@@ -28,7 +28,16 @@ namespace Moodle_Migration
                     {
                         break;
                     }
+                    // Logic to consider search term with multiple word
+                    string[] parts = input.Split('=');
 
+                    if (parts.Length == 2)  // Ensure there's exactly one equal sign
+                    {
+                        string key = parts[0];   // Part before equal sign
+                        string[] keyArgs = parts[0].Split(' ');
+                        keyArgs[2] = keyArgs[2] + "=" + parts[1];
+                        commandArgs = keyArgs;
+                    }
                     await ProcessCommand(commandArgs);
                 }
             }
