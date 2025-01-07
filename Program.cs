@@ -50,10 +50,12 @@ class Program
         services.AddTransient<IUserService, UserService>();
         services.AddTransient<ICourseService, CourseService>();
         services.AddTransient<ICategoryService, CategoryService>();
+        services.AddTransient<IScormService, ScormService>();
 
         // Register data repositories
         services.AddTransient<IUserRepository, UserRepository>();
         services.AddTransient<IUserGroupRepository, UserGroupRepository>();
         services.AddTransient<IComponentRepository, ComponentRepository>();
+        services.AddTransient<IContentObjectRepository, ContentObjectRepository>();
     }
 }

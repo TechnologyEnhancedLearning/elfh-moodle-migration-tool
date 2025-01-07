@@ -2,7 +2,7 @@
 
 namespace Moodle_Migration
 {
-    internal class App(IUserService userService, ICourseService courseService, ICategoryService categoryService)
+    internal class App(IUserService userService, ICourseService courseService, ICategoryService categoryService, IScormService scormService)
     {
         public async Task Run(string[] args)
         {
@@ -67,6 +67,10 @@ namespace Moodle_Migration
                 case "--category":
                     await categoryService.ProcessCategory(args);
                     break;
+                case "-sc":
+                case "--scorm":
+                    await scormService.ProcessScorm(args);
+                    break;
                 default:
                     Console.WriteLine("No operation specified!");
                     break;
@@ -98,6 +102,11 @@ namespace Moodle_Migration
                     case "-category":
                         ShowCategoryHelp();
                         break;
+                    case "sc":
+                    case "-sc":
+                    case "-scorm":
+                        ShowScormHelp();
+                        break;
                     default:
                         break;
                 }
@@ -121,6 +130,7 @@ namespace Moodle_Migration
             ShowUserHelp();
             ShowCourseHelp();
             ShowCategoryHelp();
+            ShowScormHelp();
         }
 
         private void ShowCategoryHelp()
@@ -156,6 +166,15 @@ namespace Moodle_Migration
             Console.WriteLine("                                                 - username={string}  import user based on elfh UserName");
             Console.WriteLine("                                                 - ugid={int}         import user group as Cohort");
             Console.WriteLine("                                                                      with option to import all users");
+            Console.WriteLine();
+        }
+        private void ShowScormHelp()
+        {
+            Console.WriteLine("Scorm actions");
+            Console.WriteLine("-sc -d                                           - Display all scorms without filtering");
+            Console.WriteLine("-sc -d {property1}={value1} {property2}={value2} - Display categories filtering by properties");
+            Console.WriteLine("-sc -c id={value}                                - Creates a top level category with the option to create child components");
+            Console.WriteLine("                                                 - id={int} elfh programme component id");
             Console.WriteLine();
         }
     }
