@@ -2,6 +2,6 @@
 {
     public interface IUserService
     {
-        Task ProcessUser(string[] args);
+        Task<string> ProcessUser(string[] args);
     }
 }

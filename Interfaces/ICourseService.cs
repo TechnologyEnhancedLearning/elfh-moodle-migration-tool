@@ -2,6 +2,6 @@
 {
     public interface ICourseService
     {
-        Task ProcessCourse(string[] args);
+        Task<string> ProcessCourse(string[] args);
     }
 }

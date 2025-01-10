@@ -24,8 +24,10 @@ namespace Moodle_Migration.Services
                               + $"&moodlewsrestformat={_configuration["MoodleApi:moodlewsrestformat"]}";
         }
 
-        public async Task Get(string url)
+        public async Task<string> Get(string url)
         {
+            string result;
+
             try
             {
                 // Make the GET request
@@ -39,22 +41,26 @@ namespace Moodle_Migration.Services
 
 
                 // Format the response using System.Text.Json amd output
-                string formattedResponseBody = JsonSerializer.Serialize(JsonDocument.Parse(responseBody), new JsonSerializerOptions { WriteIndented = true });
-                Console.Write(formattedResponseBody);
-                Console.WriteLine();
+                result = JsonSerializer.Serialize(JsonDocument.Parse(responseBody), new JsonSerializerOptions { WriteIndented = true });
+
+                //Console.Write(formattedResponseBody);
+                //Console.WriteLine();
             }
             catch (HttpRequestException e)
             {
                 // Handle any errors that occurred during the request
-                Console.WriteLine($"Request error: {e.Message}");
+                result = $"Request error: {e.Message}";
             }
+            return result;
         }
 
-        public async Task<int> Post(string url, Dictionary<string, string> parameters)
+        public async Task<(string result, int resultValue)> Post(string url, Dictionary<string, string> parameters)
         {
             try
             {
                 int returnId = 0;
+                string returnResult = string.Empty;
+
                 // Create the content for the POST request
                 var content = new MultipartFormDataContent();
                 foreach (var parameter in parameters)
@@ -81,7 +87,7 @@ namespace Moodle_Migration.Services
                         {
                             foreach (var item in items)
                             {
-                                Console.WriteLine($"Id: {item.Id} created in Moodle");
+                                returnResult += $"Id: {item.Id} created in Moodle\n";                                
                             }
                             if (items.Count == 1)
                             {
@@ -91,19 +97,19 @@ namespace Moodle_Migration.Services
                     }
                     else
                     {
-                        string formattedResponseBody = JsonSerializer.Serialize(JsonDocument.Parse(responseBody), new JsonSerializerOptions { WriteIndented = true });
-                        Console.Write(formattedResponseBody);
+                        returnResult = JsonSerializer.Serialize(JsonDocument.Parse(responseBody), new JsonSerializerOptions { WriteIndented = true });
+                        // Console.Write(formattedResponseBody);
                     }
                 }
-                Console.WriteLine();
+                //Console.WriteLine();
 
-                return returnId;
+                return (returnResult, returnId);
             }
             catch (HttpRequestException e)
             {
                 // Handle any errors that occurred during the request
-                Console.WriteLine($"Request error: {e.Message}");
-                return 0;
+                //Console.WriteLine($"Request error: {e.Message}");
+                return ("Request error: {e.Message}", 0);
             }
         }
     }

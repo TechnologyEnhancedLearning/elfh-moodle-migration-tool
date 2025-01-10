@@ -2,7 +2,7 @@
 {
     public interface IHttpService
     {
-        Task Get(string url);
-        Task<int> Post(string url, Dictionary<string, string> parameters);
+        Task<string> Get(string url);
+        Task<(string result,int resultValue)> Post(string url, Dictionary<string, string> parameters);
     }
 }

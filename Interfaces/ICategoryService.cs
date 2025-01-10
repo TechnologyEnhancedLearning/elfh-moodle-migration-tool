@@ -2,6 +2,6 @@
 {
     public interface ICategoryService
     {
-        Task ProcessCategory(string[] args);
+        Task<string> ProcessCategory(string[] args);
     }
 }

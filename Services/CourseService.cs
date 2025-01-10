@@ -4,33 +4,40 @@ namespace Moodle_Migration.Services
 {
     public class CourseService(IHttpService httpService) : ICourseService
     {
-        public async Task ProcessCourse(string[] args)
+        public async Task<string> ProcessCourse(string[] args)
         {
+            string result = string.Empty;
             if (args.Length < 2)
             {
-                Console.WriteLine("No course options specified!");
-                return;
+                result = "No course options specified!";                
             }
 
-            string[] parameters = args.Skip(2).ToArray();
-
-            switch (args![1])
+            if (string.IsNullOrEmpty(result))
             {
-                case "-d":
-                case "--display":
-                    await GetCourses(parameters);
-                    break;
-                case "-c":
-                case "--create":
-                    Console.WriteLine("Course creation is part of category child creation (-ct -c).");
-                    break;
-                default:
-                    Console.WriteLine("Invalid course option!");
-                    break;
+                string[] parameters = args.Skip(2).ToArray();
+
+                switch (args![1])
+                {
+                    case "-d":
+                    case "--display":
+                        result = await GetCourses(parameters);
+                        break;
+                    case "-c":
+                    case "--create":
+                        result = "Course creation is part of category child creation (-ct -c).";
+                        break;
+                    default:
+                        result = "Invalid course option!";
+                        break;
+                }
             }
+
+            Console.Write(result);
+            Console.WriteLine();
+            return result;
         }
 
-        private async Task GetCourses(string[] parameters)
+        private async Task<string> GetCourses(string[] parameters)
         {
             string additionalParameters = string.Empty;
 
@@ -38,7 +45,7 @@ namespace Moodle_Migration.Services
             {
                 if (!parameters[0].Contains("="))
                 {
-                    throw new ArgumentException($"Parameters must be in the format 'field=value' ({parameters[0]})");
+                    return ($"Parameters must be in the format 'field=value' ({parameters[0]})");
                 }
                 var key = parameters[0].Split('=')[0];
                 var value = parameters[0].Split('=')[1];
@@ -46,7 +53,7 @@ namespace Moodle_Migration.Services
             }
 
             string url = $"&wsfunction=core_course_get_courses_by_field{additionalParameters}";
-            await httpService.Get(url);
+            return await httpService.Get(url);
         }
     }
 }

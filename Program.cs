@@ -29,7 +29,7 @@ class Program
         await app.Run(args);
     }
 
-    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    public static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         // Register configuration
         services.AddSingleton(configuration);

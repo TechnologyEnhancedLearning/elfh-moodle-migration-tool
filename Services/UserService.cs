@@ -1,37 +1,47 @@
 using Microsoft.IdentityModel.Tokens;
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
+using System;
+using System.Text.Json;
 
 namespace Moodle_Migration.Services
 {
     public class UserService(IHttpService httpService, IUserRepository userRepository, IUserGroupRepository userGroupRepository) : IUserService
     {
-        public async Task ProcessUser(string[] args)
+        public async Task<string> ProcessUser(string[] args)
         {
+            string result = string.Empty;
             if (args.Length < 2)
             {
-                Console.WriteLine("No user option specified!");
-                return;
+                result = "No user option specified!";
             }
-            args = args.Skip(1).ToArray();
-            var parameters = args.Skip(1).ToArray();
-            switch (args[0])
+
+            if (string.IsNullOrEmpty(result))
             {
-                case "-d":
-                case "--details":
-                    await GetUsers(parameters);
-                    break;
-                case "-c":
-                case "--create":
-                    await CreateUsers(parameters);
-                    break;
-                default:
-                    Console.WriteLine("Invalid user option!");
-                    break;
+                args = args.Skip(1).ToArray();
+                var parameters = args.Skip(1).ToArray();
+                switch (args[0])
+                {
+                    case "-d":
+                    case "--details":
+                        result = await GetUsers(parameters);
+                        break;
+                    case "-c":
+                    case "--create":
+                        result = await CreateUsers(parameters);
+                        break;
+                    default:
+                        result = "Invalid user option!";
+                        break;
+                }
             }
+
+            Console.Write(result);
+            Console.WriteLine();
+            return result;
         }
 
-        private async Task GetUsers(string[] parameters)
+        private async Task<string> GetUsers(string[] parameters)
         {
             string additionalParameters = string.Empty;
 
@@ -43,10 +53,10 @@ namespace Moodle_Migration.Services
             {
                 for (int i = 0; i < parameters.Length; i++)
                 {
-                        if (!parameters[i].Contains("="))
-                        {
-                            throw new ArgumentException($"Parameters must be in the format 'key=value' ({parameters[i]})");
-                        }
+                    if (!parameters[i].Contains("="))
+                    {
+                        return($"Parameters must be in the format 'key=value' ({parameters[i]})");
+                    }
                     var key = parameters[i].Split('=')[0];
                     var value = parameters[i].Split('=')[1];
                     additionalParameters += $"&criteria[{i}][key]={key}&criteria[{i}][value]={value}";
@@ -54,26 +64,26 @@ namespace Moodle_Migration.Services
             }
 
             string url = $"&wsfunction=core_user_get_users{additionalParameters}";
-            await httpService.Get(url);
+            return await httpService.Get(url);
         }
 
-        private async Task CreateUsers(string[] parameters)
+        private async Task<string> CreateUsers(string[] parameters)
         {
+            string result = string.Empty;
+
             if (parameters.Length == 0)
             {
-                Console.WriteLine("No user data specified!");
-                return;
+                return "No user data specified!";
             }
             if (parameters.Length > 1)
             {
-                Console.WriteLine("A single parameter in the format 'parameter=value' is required.");
-                Console.WriteLine("(The 'parameter' can be 'id', 'username' or 'ugid')");
-                return;
+                //Console.WriteLine("A single parameter in the format 'parameter=value' is required.");
+                //Console.WriteLine("(The 'parameter' can be 'id', 'username' or 'ugid')");
+                return "A single parameter in the format 'parameter=value' is required. \n (The 'parameter' can be 'id', 'username' or 'ugid')";
             }
             if (!parameters[0].Contains("="))
             {
-                Console.WriteLine("Parameters must be in the format 'parameter=value')");
-                return;
+                return "Parameters must be in the format 'parameter=value')";
             }
 
             var parameter = parameters[0].Split('=')[0];
@@ -88,43 +98,78 @@ namespace Moodle_Migration.Services
 
                     if (elfhUserId == 0)
                     {
-                        Console.WriteLine("Invalid user ID!");
-                        return;
+                        return "Invalid user ID!";
                     }
                     elfhUser = await userRepository.GetByIdAsync(elfhUserId);
-                    await CreateElfhUser(elfhUser);
+                    result = await CreateElfhUser(elfhUser);
                     break;
                 case "username":
 
                     if (value.IsNullOrEmpty())
                     {
-                        Console.WriteLine("Empty username!");
-                        return;
+                        return "Empty username!";
                     }
                     elfhUser = await userRepository.GetByUserNameAsync(value);
-                    await CreateElfhUser(elfhUser);
+                    result = await CreateElfhUser(elfhUser);
                     break;
-                case "ugid":
+                case "ugidweb":
                     int elfhUserGroupId = 0;
                     Int32.TryParse(value, out elfhUserGroupId);
 
                     if (elfhUserGroupId == 0)
                     {
-                        Console.WriteLine("Invalid user group ID!");
-                        return;
+                        return "Invalid user group ID!";
                     }
 
                     var elfhUserGroup = await userGroupRepository.GetByIdAsync(elfhUserGroupId);
 
                     if (elfhUserGroup == null)
                     {
-                        Console.WriteLine("User group not found!");
+                        return "User group not found!";
                     }
                     else
                     {
 
-                        await CreateMoodleCohort(elfhUserGroup);
-                        
+                        result = await CreateMoodleCohort(elfhUserGroup);
+
+                        var elfhUserList = await userRepository.SearchAsync(
+                            new ElfhUserSearchModel() { SearchUserGroupId = elfhUserGroup.UserGroupId }
+                            );
+
+                        result += $"There are {elfhUserList.Count()} elfh user(s) in the user group '{elfhUserGroup.UserGroupName}'.\n ";
+                        result += $"This will create any missing users and assign them to the '{elfhUserGroup.UserGroupName}' user group.\n ";
+
+                        foreach (var user in elfhUserList)
+                        {
+                            // Create the user in Moodle
+                            result = result + await CreateElfhUser(user);
+
+                            // Assign the user to the user group in Moodle
+                            result = result + await AssignUserToCohort(user.UserName, elfhUserGroupId);
+                        }
+
+                    }
+                    break;
+                case "ugid":
+                    elfhUserGroupId = 0;
+                    Int32.TryParse(value, out elfhUserGroupId);
+
+                    if (elfhUserGroupId == 0)
+                    {
+                        return "Invalid user group ID!";
+                    }
+
+                    elfhUserGroup = await userGroupRepository.GetByIdAsync(elfhUserGroupId);
+
+                    if (elfhUserGroup == null)
+                    {
+                        return "User group not found!";
+                    }
+                    else
+                    {
+
+                        result = await CreateMoodleCohort(elfhUserGroup);
+
                         var elfhUserList = await userRepository.SearchAsync(
                             new ElfhUserSearchModel() { SearchUserGroupId = elfhUserGroup.UserGroupId }
                             );
@@ -140,22 +185,25 @@ namespace Moodle_Migration.Services
                             foreach (var user in elfhUserList)
                             {
                                 // Create the user in Moodle
-                                await CreateElfhUser(user);
+                                result +=  await CreateElfhUser(user);
 
                                 // Assign the user to the user group in Moodle
-                                await AssignUserToCohort(user.UserName, elfhUserGroupId);
+                                result = result + await AssignUserToCohort(user.UserName, elfhUserGroupId);
                             }
                         }
                     }
                     break;
                 default:
-                    Console.WriteLine("Parameter must be either 'id', 'username' or 'ugid'");
+                    result = "Parameter must be either 'id', 'username' or 'ugid'";
                     break;
             }
+
+            return result;
         }
 
-        private async Task AssignUserToCohort(string userName, int elfhUserGroupId)
+        private async Task<string> AssignUserToCohort(string userName, int elfhUserGroupId)
         {
+            string result = string.Empty;
             string additionalParameters = string.Empty;
             additionalParameters += "&members[0][cohorttype][type]=idnumber";
             additionalParameters += $"&members[0][cohorttype][value]=elfh-{elfhUserGroupId}";
@@ -164,16 +212,17 @@ namespace Moodle_Migration.Services
 
             string url = $"&wsfunction=core_cohort_add_cohort_members{additionalParameters}";
 
-            Console.WriteLine($"Assigning '{userName}' to cohort.");
-            await httpService.Get(url);
+            result = $"Assigning '{userName}' to cohort.";
+            result +=  await httpService.Get(url);
+
+            return result;
         }
 
-        private async Task<int> CreateMoodleCohort(ElfhUserGroup elfhUserGroup)
+        private async Task<string> CreateMoodleCohort(ElfhUserGroup elfhUserGroup)
         {
             if (elfhUserGroup == null)
             {
-                Console.WriteLine("User group not found!");
-                return 0;
+                return "User group not found!";
             }
             else
             {
@@ -191,25 +240,27 @@ namespace Moodle_Migration.Services
 
                 string url = $"&wsfunction=core_cohort_create_cohorts";
 
-                var cohortId = await httpService.Post(url, parameters);
-                if (cohortId > 0)
+                var result = await httpService.Post(url, parameters);
+                string returnMessage = result.result;
+                if (!string.IsNullOrEmpty(returnMessage))
                 {
-                    Console.WriteLine($"Cohort '{elfhUserGroup.UserGroupName}' created in Moodle");
+                    returnMessage += $"Cohort '{elfhUserGroup.UserGroupName}' created in Moodle\n";
                 }
                 else
                 {
-                    Console.WriteLine($"FAILED to create Cohort '{elfhUserGroup.UserGroupName}' in Moodle");
+                    returnMessage = $"FAILED to create Cohort '{elfhUserGroup.UserGroupName}' in Moodle\n";
                 }
-                return cohortId;
+                return returnMessage;
             }
         }
 
-        private async Task<int> CreateElfhUser(ElfhUser? elfhUser)
+        private async Task<string> CreateElfhUser(ElfhUser? elfhUser)
         {
+            string result = string.Empty;
+
             if (elfhUser == null)
             {
-                Console.WriteLine("User not found!");
-                return 0;
+                return "User not found!";
             }
             else
             {
@@ -225,14 +276,21 @@ namespace Moodle_Migration.Services
                     { "users[0][description]", "" },
                     { "users[0][department]", "" },
                     { "users[0][lang]", "en" },
+                    { "users[0][firstnamephonetic]", "" },
+                    { "users[0][lastnamephonetic]", "" },
+                    { "users[0][middlename]", "" },
+                    { "users[0][alternatename]", "" },
                     { "users[0][theme]", "" },
                     { "users[0][mailformat]", "1" }
                 };
 
                 string url = $"&wsfunction=core_user_create_users";
 
-                Console.WriteLine($"Creating user '{elfhUser.UserName}'");
-                return await httpService.Post(url, parameters);
+                result = $"\nCreating user '{elfhUser.UserName}'\n";
+                var returnResult = await httpService.Post(url, parameters);
+                result += returnResult.result;
+
+                return result;
             }
         }
     }

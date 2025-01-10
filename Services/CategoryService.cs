@@ -7,33 +7,40 @@ namespace Moodle_Migration.Services
 {
     public class CategoryService(IHttpService httpService, IComponentRepository componentRepository) : ICategoryService
     {
-        public async Task ProcessCategory(string[] args)
+        public async Task<string> ProcessCategory(string[] args)
         {
+            string result = string.Empty;
             if (args.Length < 2)
             {
-                Console.WriteLine("No category options specified!");
-                return;
+                result = "No category options specified!";
             }
-            args = args.Skip(1).ToArray();
-            var parameters = args.Skip(1).ToArray();
-
-            switch (args![0])
+            if (string.IsNullOrEmpty(result))
             {
-                case "-d":
-                case "--display":
-                    await GetCategories(parameters);
-                    break;
-                case "-c":
-                case "--create":
-                    await CreateCategoryStructure(parameters);
-                    break;
-                default:
-                    Console.WriteLine("Invalid category option!");
-                    break;
+                args = args.Skip(1).ToArray();
+                var parameters = args.Skip(1).ToArray();
+
+                switch (args![0])
+                {
+                    case "-d":
+                    case "--display":
+                        result = await GetCategories(parameters);
+                        break;
+                    case "-c":
+                    case "--create":
+                        result = await CreateCategoryStructure(parameters);
+                        break;
+                    default:
+                        result = "Invalid category option!";
+                        break;
+                }
             }
+
+            Console.Write(result);
+            Console.WriteLine();
+            return result;
         }
 
-        private async Task GetCategories(string[] parameters)
+        private async Task<string> GetCategories(string[] parameters)
         {
             string additionalParameters = string.Empty;
 
@@ -43,7 +50,7 @@ namespace Moodle_Migration.Services
                 {
                     if (!parameters[i].Contains("="))
                     {
-                        throw new ArgumentException($"Parameters must be in the format 'key=value' ({parameters[i]})");
+                        return ($"Parameters must be in the format 'key=value' ({parameters[i]})");
                     }
                     var key = parameters[i].Split('=')[0];
                     var value = parameters[i].Split('=')[1];
@@ -52,26 +59,24 @@ namespace Moodle_Migration.Services
             }
 
             string url = $"&wsfunction=core_course_get_categories{additionalParameters}";
-            await httpService.Get(url);
+            return await httpService.Get(url);
         }
 
-        private async Task CreateCategoryStructure(string[] parameters)
+        private async Task<string> CreateCategoryStructure(string[] parameters)
         {
+            string result = string.Empty;
+
             if (parameters.Length == 0)
             {
-                Console.WriteLine("No category data specified!");
-                return;
+                return "No category data specified!";
             }
             if (parameters.Length > 1)
-            {
-                Console.WriteLine("A single parameter in the format 'parameter=value' is required.");
-                Console.WriteLine("(The 'parameter' can be 'id')");
-                return;
+            {               
+                return "A single parameter in the format 'parameter=value' is required. (The 'parameter' can be 'id') \n";
             }
             if (!parameters[0].Contains("="))
             {
-                Console.WriteLine("Parameters must be in the format 'parameter=value')");
-                return;
+                return "Parameters must be in the format 'parameter=value')";
             }
 
             var parameter = parameters[0].Split('=')[0];
@@ -85,16 +90,20 @@ namespace Moodle_Migration.Services
 
                     if (elfhComponentId == 0)
                     {
-                        Console.WriteLine("Invalid elfh component ID!");
-                        return;
+                        return "Invalid elfh component ID!";
                     }
                     ElfhComponent elfhComponent = await componentRepository.GetByIdAsync(elfhComponentId);
-                    elfhComponent.MoodleCategoryId = await CreateMoodleCategory(elfhComponent);
+                    if (elfhComponent == null)
+                    {
+                        return "Invalid elfh component ID!";
+                    }
+                    var categoryResult = await CreateMoodleCategory(elfhComponent);
+                    elfhComponent.MoodleCategoryId = categoryResult.resultValue;
+                    result = categoryResult.result;
 
                     if (elfhComponent.MoodleCategoryId == 0)
                     {
-                        Console.WriteLine("Category creation failed!");
-                        return;
+                        return "Category creation failed!";                        
                     }
 
                     Console.WriteLine($"Would you like to create the child elfh components and add them to the '{elfhComponent.ComponentName}' category?");
@@ -105,22 +114,52 @@ namespace Moodle_Migration.Services
                     if (keyInfo.KeyChar == 'Y' || keyInfo.KeyChar == 'y')
                     {
                         List<ElfhComponent> elfhChildComponents = await componentRepository.GetChildComponentsAsync(elfhComponent.ComponentId);
-                        await CreateCategoryChildren(elfhComponent, elfhChildComponents);
+                        result += await CreateCategoryChildren(elfhComponent, elfhChildComponents);
                     }
 
                     break;
+
+                case "idweb":
+                    elfhComponentId = 0;
+                    Int32.TryParse(value, out elfhComponentId);
+
+                    if (elfhComponentId == 0)
+                    {
+                        return "Invalid elfh component ID!";                        
+                    }
+                    elfhComponent = await componentRepository.GetByIdAsync(elfhComponentId);
+                    if (elfhComponent == null)
+                    {
+                        return "Invalid elfh component ID!";
+                    }
+                    categoryResult = await CreateMoodleCategory(elfhComponent);
+                    elfhComponent.MoodleCategoryId = categoryResult.resultValue;
+                    result = categoryResult.result;
+
+                    if (elfhComponent.MoodleCategoryId == 0)
+                    {
+                        result += "\n" + "Category creation failed!";
+                        return result;
+                    }
+
+                    result += "\n" + $"The child elfh components will be created and added  to the '{elfhComponent.ComponentName}' category";
+
+                    List<ElfhComponent> elfhChildComponentsWeb = await componentRepository.GetChildComponentsAsync(elfhComponent.ComponentId);
+                    result += await CreateCategoryChildren(elfhComponent, elfhChildComponentsWeb);                    
+
+                    break;
                 default:
-                    Console.WriteLine("Parameter must 'id'");
+                    result = "Parameter must 'id'";
                     break;
             }
+            return result;
         }
 
-        private async Task<int> CreateMoodleCategory(ElfhComponent? elfhComponent)
+        private async Task<(string result, int resultValue)> CreateMoodleCategory(ElfhComponent? elfhComponent)
         {
             if (elfhComponent == null)
             {
-                Console.WriteLine("Elfh component not found!");
-                return 0;
+                return ("Elfh component not found!", 0);
             }
             else
             {
@@ -141,8 +180,10 @@ namespace Moodle_Migration.Services
             }
         }
 
-        private async Task CreateCategoryChildren(ElfhComponent elfhComponent, List<ElfhComponent> elfhChildComponents)
+        private async Task<string> CreateCategoryChildren(ElfhComponent elfhComponent, List<ElfhComponent> elfhChildComponents)
         {
+            string result = string.Empty;
+
             List<ElfhComponent> children = elfhChildComponents.Where(c => c.ParentComponentId == elfhComponent.ComponentId).ToList();
             if (children.Count > 0)
             {
@@ -159,7 +200,9 @@ namespace Moodle_Migration.Services
                     case ComponentTypeEnum.Programme:
                     case ComponentTypeEnum.Folder:
                         Console.WriteLine($"Creating {children.Count} child categories for '{elfhComponent.ComponentName}'");
-                        elfhChildComponent.MoodleCategoryId = await CreateMoodleCategory(elfhChildComponent);
+                        var categoryResult = await CreateMoodleCategory(elfhChildComponent);
+                        elfhChildComponent.MoodleCategoryId = categoryResult.resultValue;
+                        result += categoryResult.result;
                         await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
                         break;
                     case ComponentTypeEnum.Application:
@@ -167,11 +210,11 @@ namespace Moodle_Migration.Services
                         break;
                     case ComponentTypeEnum.Course:
                         Console.WriteLine($"Creating Course '{elfhChildComponent.ComponentName}'");
-                        await CreateCourse(elfhChildComponent);
+                        result += await CreateCourse(elfhChildComponent);
                         break;
                     case ComponentTypeEnum.LearningPath:
                         Console.WriteLine($"Creating Course for Learning Path '{elfhChildComponent.ComponentName}'");
-                        await CreateCourse(elfhChildComponent);
+                        result += await CreateCourse(elfhChildComponent);
                         break;
                     case ComponentTypeEnum.Session:
                         Console.WriteLine($"Session '{elfhChildComponent.ComponentName}'");
@@ -180,14 +223,14 @@ namespace Moodle_Migration.Services
                         break;
                 }
             }
+            return result;
         }
 
-        private async Task<int> CreateCourse(ElfhComponent elfhComponent)
+        private async Task<string> CreateCourse(ElfhComponent elfhComponent)
         {
             if (elfhComponent == null)
             {
-                Console.WriteLine("Elfh component not found!");
-                return 0;
+                return "Elfh component not found!";
             }
             else
             {
@@ -231,8 +274,8 @@ namespace Moodle_Migration.Services
                 //courses[0][customfields][0][value] = string
 
                 string url = "&wsfunction=core_course_create_courses";
-
-                return await httpService.Post(url, parameters);
+                var result = await httpService.Post(url, parameters);
+                return result.result;
             }
         }
     }
