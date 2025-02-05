@@ -1,0 +1,61 @@
+﻿<div class="help-section">
+    <h3>Available actions:</h3>
+    <ul>
+        <li><strong>-h, --help</strong> - Show help information</li>
+        <li><strong>-h, --help {option}</strong> - Show help information for specific option</li>
+        <ul>
+            <li><strong>-u, --user</strong></li>
+            <li><strong>-c, --course</strong></li>
+            <li><strong>-ct, --category</strong></li>
+        </ul>
+        <li><strong>-u, --user {operation} {parameters}</strong> - Perform user operation (details or create) with specified parameters</li>
+        <li><strong>-c, --course {operation} {parameters}</strong> - Perform course operation (detail) with specified parameters</li>
+        <li><strong>-ct, --category {operation} {parameters}</strong> - Perform course operation (create) with specified parameters</li>
+        <ul>
+            <li><strong>Available operations</strong></li>
+            <li><strong>-d, --display</strong></li>
+            <li><strong>-c, --create</strong></li>
+        </ul>
+    </ul>
+    <hr />
+    <div class="user-help">
+        <h4>User actions</h4>
+        <ul>
+            <li><strong>-u -d</strong> - Display all users without filtering</li>
+            <li><strong>-u -d {property1}={value1} {property2}={value2}</strong> - Display users filtering by properties</li>
+            <li><strong>-u -c {parameter}={value}</strong> - Import Users and/or Cohorts from elfh to Moodle</li>
+            <ul>
+                <li><strong>id={int}</strong> - Import user based on elfh UserId</li>
+                <li><strong>username={string}</strong> - Import user based on elfh UserName</li>
+                <li><strong>ugid={int}</strong> - Import user group as Cohort with option to import all users</li>
+            </ul>
+        </ul>
+    </div>
+    <hr />
+    <div class="course-help">
+        <h4>Course actions</h4>
+        <ul>
+            <li><strong>-c -d</strong> - Display all courses without filtering</li>
+            <li><strong>-c -d {field}={value}</strong> - Display courses filtering by specific field</li>
+            <ul>
+                <li><strong>id={int}</strong> - Course id</li>
+                <li><strong>ids={int,int,int}</strong> - Comma separated course ids</li>
+                <li><strong>shortname={string}</strong> - Course short name</li>
+                <li><strong>category={int}</strong> - Category id the course belongs to</li>
+                <li><strong>sectionid={int}</strong> - Section id that belongs to a course</li>
+            </ul>
+        </ul>
+    </div>
+    <hr />
+    <div class="category-help">
+        <h4>Category actions</h4>
+        <ul>
+            <li><strong>-ct -d</strong> - Display all categories without filtering</li>
+            <li><strong>-ct -d {property1}={value1} {property2}={value2}</strong> - Display categories filtering by properties</li>
+            <li><strong>-ct -c id={value}</strong> - Creates a top-level category with the option to create child components</li>
+            <ul>
+                <li><strong>id={int}</strong> - Elfh programme component id</li>
+            </ul>
+        </ul>
+    </div>
+</div>
