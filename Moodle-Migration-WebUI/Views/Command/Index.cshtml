@@ -1,0 +1,40 @@
+﻿@{
+    ViewData["Title"] = "Moodle Migration from elfh Hub";
+}
+
+<style>
+    /* Basic styling to make the JSON look more readable */
+    pre {
+        font-family: "Courier New", Courier, monospace;
+        background-color: #f4f4f4;
+        padding: 10px;
+        border-radius: 5px;
+        overflow-x: auto;
+    }
+</style>
+
+<h1>Moodle Migration from elfh Hub</h1>
+
+<form method="post" asp-action="Execute" asp-controller="Command">
+    <div class="row">
+        <div class="form-group col-md-9 col-sm-9">
+            <label for="command">Enter Command:</label>
+            <input type="text" class="form-control" id="command" name="command" placeholder="e.g., -h or -u -d" required />
+
+            <button type="submit" class="btn btn-primary mt-2">Execute</button>
+
+            @if (ViewBag.Result != null)
+            {
+                <div class="alert alert-info mt-3" style="max-height: 600px; overflow-y: auto;">
+                    <pre>@ViewBag.Result</pre>
+                </div>
+            }
+
+        </div>
+
+        <div class="alert alert-info mt-3 col-md-3 col-sm-3">
+            @Html.Partial("_HelpPartial")
+        </div>
+    </div>
+</form>
+
