@@ -23,8 +23,17 @@ namespace Moodle_Migration.Repositories
             parameters.Add("@ProgrammeId", componentId);
             parameters.Add("@UserId", 4); // Portal Admin userid
 
-            var elfhComponents = await dbConnection.QueryAsync<ElfhComponent>("dbo.proc_MyELearningProgrammeChildComponents", parameters, commandType: CommandType.StoredProcedure);
+            var elfhComponents = await dbConnection.QueryAsync<ElfhComponent>("dbo.proc_MyELearningProgrammeChildComponentsAll", parameters, commandType: CommandType.StoredProcedure);
             return elfhComponents.Cast<ElfhComponent>().ToList();
+        }
+        public async Task<string> GetDevelopmentIdForComponentAsync(int componentId)
+        {
+            var parameters = new DynamicParameters();
+            parameters.Add("@ComponentId", componentId);
+
+
+            var developmentId = await dbConnection.ExecuteScalarAsync<string>("dbo.proc_GetDevelopmentIdForComponent", parameters, commandType: CommandType.StoredProcedure);
+            return developmentId;
         }
     }
 }

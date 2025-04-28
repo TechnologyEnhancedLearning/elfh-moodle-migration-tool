@@ -47,10 +47,11 @@ class Program
 
         // Register data services
         services.AddTransient<IHttpService, HttpService>();
+        services.AddTransient<IFileService, FileService>();
         services.AddTransient<IUserService, UserService>();
         services.AddTransient<ICourseService, CourseService>();
         services.AddTransient<ICategoryService, CategoryService>();
-
+        
         // Register data repositories
         services.AddTransient<IUserRepository, UserRepository>();
         services.AddTransient<IUserGroupRepository, UserGroupRepository>();
