@@ -11,5 +11,7 @@
         public int RootComponentId { get; set; }
         public int MoodleCategoryId { get; set; }
         public int MoodleParentCategoryId { get; set; }
+        public int MoodleCourseId { get; set; }
+        public string DevelopmentId { get; set; } = string.Empty;
     }
 }

@@ -52,10 +52,11 @@ void ConfigureServices(ServiceCollection serviceCollection, IConfigurationRoot c
 
     // Register data services
     builder.Services.AddTransient<IHttpService, HttpService>();
+    builder.Services.AddTransient<IFileService, FileService>();
     builder.Services.AddTransient<IUserService, UserService>();
     builder.Services.AddTransient<ICourseService, CourseService>();
     builder.Services.AddTransient<ICategoryService, CategoryService>();
-
+    
     // Register data repositories
     builder.Services.AddTransient<IUserRepository, UserRepository>();
     builder.Services.AddTransient<IUserGroupRepository, UserGroupRepository>();
