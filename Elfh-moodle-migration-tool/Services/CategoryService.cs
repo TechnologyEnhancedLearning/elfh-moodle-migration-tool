@@ -233,13 +233,6 @@ namespace Moodle_Migration.Services
                         result += categoryResult.result;
                         await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
                         break;
-                    //case ComponentTypeEnum.Folder:
-                    //    Console.WriteLine($"Creating {children.Count} child categories for '{elfhComponent.ComponentName}'");
-                    //    var folderResult = await CreateMoodleFolder(elfhChildComponent);
-                    //    elfhChildComponent.MoodleCategoryId = folderResult.resultValue;
-                    //    result += folderResult.result;
-                    //    await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
-                    //    break;
                     case ComponentTypeEnum.Application:
                         Console.WriteLine($"Application '{elfhChildComponent.ComponentName}'");
                         break;
