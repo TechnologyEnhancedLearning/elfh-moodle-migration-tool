@@ -5,6 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Moodle_Migration.Services
 {
+
     public class CategoryService(IHttpService httpService, IComponentRepository componentRepository, IFileService fileService) : ICategoryService
     {
         public async Task<string> ProcessCategory(string[] args)
@@ -106,16 +107,9 @@ namespace Moodle_Migration.Services
                         return "Category creation failed!";                        
                     }
 
-                    Console.WriteLine($"Would you like to create the child elfh components and add them to the '{elfhComponent.ComponentName}' category?");
-                    Console.WriteLine("Press 'Y' to continue or any other key to exit.");
-
-                    ConsoleKeyInfo keyInfo = Console.ReadKey();
-                    Console.WriteLine();
-                    if (keyInfo.KeyChar == 'Y' || keyInfo.KeyChar == 'y')
-                    {
-                        List<ElfhComponent> elfhChildComponents = await componentRepository.GetChildComponentsAsync(elfhComponent.ComponentId);
-                        result += await CreateCategoryChildren(elfhComponent, elfhChildComponents);
-                    }
+                    result += "\n" + $"The child elfh components will be created and added  to the '{elfhComponent.ComponentName}' category";
+                    List<ElfhComponent> elfhChildComponents = await componentRepository.GetChildComponentsAsync(elfhComponent.ComponentId);
+                    result += await CreateCategoryChildren(elfhComponent, elfhChildComponents);
 
                     break;
 
@@ -223,37 +217,39 @@ namespace Moodle_Migration.Services
                 switch ((ComponentTypeEnum)elfhChildComponent.ComponentTypeId)
                 {
                     case ComponentTypeEnum.ClinicalGroup:
-                        Console.WriteLine($"Clinical group '{elfhChildComponent.ComponentName}'");
+
+                        result += "\n" + $"Clinical group  '{elfhComponent.ComponentName}' ";
                         break;
                     case ComponentTypeEnum.Programme:
                     case ComponentTypeEnum.Folder:
-                        Console.WriteLine($"Creating {children.Count} child categories for '{elfhComponent.ComponentName}'");
+                        result += "\n" + $"Creating {children.Count} child categories for '{elfhComponent.ComponentName}'";
                         var categoryResult = await CreateMoodleCategory(elfhChildComponent);
                         elfhChildComponent.MoodleCategoryId = categoryResult.resultValue;
                         result += categoryResult.result;
                         await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
                         break;
                     case ComponentTypeEnum.Application:
-                        Console.WriteLine($"Application '{elfhChildComponent.ComponentName}'");
+                        result += "\n" + $"Application '{elfhChildComponent.ComponentName}'";
                         break;
                     case ComponentTypeEnum.Course:
-                        Console.WriteLine($"Creating Course '{elfhChildComponent.ComponentName}'");
+                        result += "\n" + $"Creating Course '{elfhChildComponent.ComponentName}'";
                         var course = await CreateCourse(elfhChildComponent);
                         elfhChildComponent.MoodleCourseId = course.resultValue;
                         result += course.result;
                         await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
                         break;
                     case ComponentTypeEnum.LearningPath:
-                        Console.WriteLine($"Creating Course for Learning Path '{elfhChildComponent.ComponentName}'");
+                        result += "\n" + $"Creating Course for Learning Path '{elfhChildComponent.ComponentName}'";
                         var learningpath = await CreateCourse(elfhChildComponent);
                         elfhChildComponent.MoodleCourseId = learningpath.resultValue;
                         result += learningpath.result;
                         await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
                         break;
                     case ComponentTypeEnum.Session:
-                        Console.WriteLine($"Session '{elfhChildComponent.ComponentName}'");
+                        result += "\n" + $"Creating Session '{elfhChildComponent.ComponentName}'";
                         var developmentId = await componentRepository.GetDevelopmentIdForComponentAsync(elfhChildComponent.ComponentId);
                         elfhChildComponent.DevelopmentId = developmentId;
+                        result += "\n" + $"Session '{elfhChildComponent.ComponentName}' has been creaed  ";
                         result += await CreateScorm(elfhChildComponent);
                         await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
                         break;
