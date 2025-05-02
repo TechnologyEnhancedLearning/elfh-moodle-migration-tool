@@ -222,11 +222,15 @@ namespace Moodle_Migration.Services
                         break;
                     case ComponentTypeEnum.Programme:
                     case ComponentTypeEnum.Folder:
-                        result += "\n" + $"Creating {children.Count} child categories for '{elfhComponent.ComponentName}'";
-                        var categoryResult = await CreateMoodleCategory(elfhChildComponent);
-                        elfhChildComponent.MoodleCategoryId = categoryResult.resultValue;
-                        result += categoryResult.result;
-                        await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
+                        if(elfhChildComponent.MoodleParentCategoryId>0)
+                        {
+                            result += "\n" + $"Creating {children.Count} child categories for '{elfhComponent.ComponentName}'";
+                            var categoryResult = await CreateMoodleCategory(elfhChildComponent);
+                            elfhChildComponent.MoodleCategoryId = categoryResult.resultValue;
+                            result += categoryResult.result;
+                            await CreateCategoryChildren(elfhChildComponent, elfhChildComponents);
+                        }
+                        
                         break;
                     case ComponentTypeEnum.Application:
                         result += "\n" + $"Application '{elfhChildComponent.ComponentName}'";
