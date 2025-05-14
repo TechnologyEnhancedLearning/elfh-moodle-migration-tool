@@ -8,6 +8,7 @@ using Moodle_Migration_WebUI.Interfaces;
 using Moodle_Migration_WebUI;
 using Moodle_Migration_WebUI.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Moodle_Migration_WebUI.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,7 +41,7 @@ void ConfigureServices(ServiceCollection serviceCollection, IConfigurationRoot c
 {
     // Register configuration
     builder.Services.AddSingleton(configuration);
-
+    builder.Services.AddSignalR();
     // Register the Moodle HttpClient
     builder.Services.AddHttpClient("MoodleClient", client =>
     {
@@ -107,5 +108,5 @@ app.Use(async (context, next) =>
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Login}/{id?}");
-
+app.MapHub<StatusHub>("/statushub");
 app.Run();

@@ -29,7 +29,7 @@ namespace Moodle_Migration_WebUI
             {
                 case "-h":
                 case "--help":
-                    ShowHelp(args);
+                    result=ShowHelp(args);
                     break;
                 case "-u":
                 case "--user":

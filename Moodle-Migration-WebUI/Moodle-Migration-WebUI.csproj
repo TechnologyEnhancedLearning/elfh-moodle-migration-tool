@@ -8,7 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Elfh-moodle-migration-tool\Moodle-Migration.csproj" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageReference Include="SimpleImpersonation" Version="4.2.0" />
   </ItemGroup>
 
 </Project>

@@ -11,8 +11,46 @@
         border-radius: 5px;
         overflow-x: auto;
     }
-</style>
 
+    #statusList {
+        color:black;
+        font-size:15px;
+        font-weight:500;
+    }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/statushub")
+        .build();
+
+    connection.on("ReceiveStatus", function (message) {
+        const label = document.getElementById("statusLabel");
+        if (label) label.innerText = message;
+    });
+
+    connection.start().catch(err => console.error(err.toString()));
+
+    function executeCommand() {
+        fetch('/Command/ExecuteCommand', { method: 'POST' });
+    }
+    function hideResult() {
+        var alertBox = document.getElementById("resultAlert");
+        if (alertBox) {
+            alertBox.style.display = "none";
+        }
+    }
+    connection.on("ReceiveStatus", function (message) {
+        const statusList = document.getElementById("statusList");
+        const li = document.createElement("li");
+        li.textContent = message;
+        statusList.appendChild(li);
+    });
+
+    connection.start().catch(function (err) {
+        return console.error(err.toString());
+    });
+</script>
 <h1>Moodle Migration from elfh Hub</h1>
 
 <form method="post" asp-action="Execute" asp-controller="Command">
@@ -21,11 +59,17 @@
             <label for="command">Enter Command:</label>
             <input type="text" class="form-control" id="command" name="command" placeholder="e.g., -h or -u -d" required />
 
-            <button type="submit" class="btn btn-primary mt-2">Execute</button>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                <button type="submit" class="btn btn-primary" onclick="hideResult()">Execute</button>
+                @* <h5 style="margin: 0;">Status: <span id="statusLabel" style="color:green; font-size:22px;">Idle</span></h5> *@
+            </div>
 
+            <br />
+            
+            <ul id="statusList"></ul>
             @if (ViewBag.Result != null)
             {
-                <div class="alert alert-info mt-3" style="max-height: 600px; overflow-y: auto;">
+                <div id="resultAlert" class="alert alert-info mt-3" style="max-height: 600px; overflow-y: auto;">
                     <pre>@ViewBag.Result</pre>
                 </div>
             }
