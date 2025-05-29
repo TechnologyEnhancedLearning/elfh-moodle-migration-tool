@@ -17,6 +17,40 @@
         font-size:15px;
         font-weight:500;
     }
+
+    .status-container {
+        background-color: #cff4fc; /* Light blue outer */
+        border: 1px solid #b6effb; /* Light blue border */
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 10px;
+        height: 500px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .status-inner {
+        background-color: #f1f1f1;
+        border-radius: 6px;
+        padding: 12px;
+        height: 470px;
+        max-height: 470px; /* or whatever height you need */
+        overflow-y: auto; /* enables vertical scrolling */
+    }
+
+
+    #statusList {
+        list-style-type: disc;
+        padding-left: 20px;
+        margin: 0;
+        font-size: 15px;
+        font-weight: 500;
+        color: black;
+    }
+
+
+
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 <script>
@@ -25,8 +59,22 @@
         .build();
 
     connection.on("ReceiveStatus", function (message) {
-        const label = document.getElementById("statusLabel");
-        if (label) label.innerText = message;
+        const statusList = document.getElementById("statusList");
+        const statusContainer = document.getElementById("statusContainer");
+
+        // Show container if hidden
+        if (statusContainer.style.display === "none") {
+            statusContainer.style.display = "block";
+        }
+
+        // Append message
+        const li = document.createElement("li");
+        li.textContent = message;
+        statusList.appendChild(li);
+
+        // Auto-scroll
+        const statusInner = document.querySelector('.status-inner');
+        statusInner.scrollTop = statusInner.scrollHeight;
     });
 
     connection.start().catch(err => console.error(err.toString()));
@@ -40,12 +88,6 @@
             alertBox.style.display = "none";
         }
     }
-    connection.on("ReceiveStatus", function (message) {
-        const statusList = document.getElementById("statusList");
-        const li = document.createElement("li");
-        li.textContent = message;
-        statusList.appendChild(li);
-    });
 
     connection.start().catch(function (err) {
         return console.error(err.toString());
@@ -65,8 +107,11 @@
             </div>
 
             <br />
-            
-            <ul id="statusList"></ul>
+            <div class="status-container" id="statusContainer" style="display: none;">
+                <div class="status-inner" id="statusInner">
+                    <ul id="statusList"></ul>
+                </div>
+            </div>
             @if (ViewBag.Result != null)
             {
                 <div id="resultAlert" class="alert alert-info mt-3" style="max-height: 600px; overflow-y: auto;">

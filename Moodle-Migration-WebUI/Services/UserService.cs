@@ -1,13 +1,29 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
+using Moodle_Migration_WebUI.Hubs;
 using System;
+using System.Drawing;
+using System.Reflection;
 using System.Text.Json;
 
 namespace Moodle_Migration.Services
 {
-    public class UserService(IHttpService httpService, IUserRepository userRepository, IUserGroupRepository userGroupRepository) : IUserService
+    public class UserService: IUserService
     {
+        private readonly IHttpService httpService;
+        private readonly IUserRepository userRepository;
+        private readonly IUserGroupRepository userGroupRepository;
+        private readonly IHubContext<StatusHub> hubContext;
+        public UserService(IHttpService _httpService, IUserRepository _userRepository, IUserGroupRepository _userGroupRepository, IHubContext<StatusHub> _hubContext)
+        {
+            httpService = _httpService;
+            userRepository = _userRepository;
+            userGroupRepository = _userGroupRepository;
+            hubContext = _hubContext;
+        }
         public async Task<string> ProcessUser(string[] args)
         {
             string result = string.Empty;
@@ -135,8 +151,8 @@ namespace Moodle_Migration.Services
                         var elfhUserList = await userRepository.SearchAsync(
                             new ElfhUserSearchModel() { SearchUserGroupId = elfhUserGroup.UserGroupId }
                             );
-
-                        result += $"There are {elfhUserList.Count()} elfh user(s) in the user group '{elfhUserGroup.UserGroupName}'.\n ";
+                        await hubContext.Clients.All.SendAsync("ReceiveStatus", "There are  " + elfhUserList.Count() + " elfh user(s) in the user group '"+ elfhUserGroup.UserGroupName+"' .");
+                        await hubContext.Clients.All.SendAsync("ReceiveStatus", "This will create any missing users and assign them to the  '" + elfhUserGroup.UserGroupName + "' user group.");
                         result += $"This will create any missing users and assign them to the '{elfhUserGroup.UserGroupName}' user group.\n ";
 
                         foreach (var user in elfhUserList)
@@ -175,22 +191,22 @@ namespace Moodle_Migration.Services
                             );
 
                         Console.WriteLine($"There are {elfhUserList.Count()} elfh user(s) in the user group '{elfhUserGroup.UserGroupName}'");
-                        Console.WriteLine($"Would you like to create any missing users and asign them to the '{elfhUserGroup.UserGroupName}' user group?");
-                        Console.WriteLine("Press 'Y' to continue or any other key to exit.");
+                        await hubContext.Clients.All.SendAsync("ReceiveStatus", "There are  " + elfhUserList.Count() + " elfh user(s) in the user group '" + elfhUserGroup.UserGroupName + "' .");
+                        //Console.WriteLine($"Would you like to create any missing users and asign them to the '{elfhUserGroup.UserGroupName}' user group?");
+                        //Console.WriteLine("Press 'Y' to continue or any other key to exit.");
 
-                        ConsoleKeyInfo keyInfo = Console.ReadKey();
-                        Console.WriteLine();
-                        if (keyInfo.KeyChar == 'Y' || keyInfo.KeyChar == 'y')
-                        {
+                        //ConsoleKeyInfo keyInfo = Console.ReadKey();
+                        //Console.WriteLine();
+                        //if (keyInfo.KeyChar == 'Y' || keyInfo.KeyChar == 'y')
+                        //{
                             foreach (var user in elfhUserList)
                             {
                                 // Create the user in Moodle
                                 result +=  await CreateElfhUser(user);
-
-                                // Assign the user to the user group in Moodle
-                                result = result + await AssignUserToCohort(user.UserName, elfhUserGroupId);
+                            // Assign the user to the user group in Moodle
+                            result = result + await AssignUserToCohort(user.UserName, elfhUserGroupId);
                             }
-                        }
+                        //}
                     }
                     break;
                 default:
@@ -213,6 +229,7 @@ namespace Moodle_Migration.Services
             string url = $"&wsfunction=core_cohort_add_cohort_members{additionalParameters}";
 
             result = $"Assigning '{userName}' to cohort.";
+            await hubContext.Clients.All.SendAsync("ReceiveStatus", "Assigning  '"+ userName + "' to cohort.");
             result +=  await httpService.Get(url);
 
             return result;
@@ -245,6 +262,8 @@ namespace Moodle_Migration.Services
                 if (!string.IsNullOrEmpty(returnMessage))
                 {
                     returnMessage += $"Cohort '{elfhUserGroup.UserGroupName}' created in Moodle\n";
+                    await hubContext.Clients.All.SendAsync("ReceiveStatus", "Cohort '"+elfhUserGroup.UserGroupName+"' created in Moodle");
+
                 }
                 else
                 {
@@ -287,7 +306,10 @@ namespace Moodle_Migration.Services
                 string url = $"&wsfunction=core_user_create_users";
 
                 result = $"\nCreating user '{elfhUser.UserName}'\n";
+                await hubContext.Clients.All.SendAsync("ReceiveStatus", "Creating user '"+ elfhUser.UserName + "' ");
                 var returnResult = await httpService.Post(url, parameters);
+                await hubContext.Clients.All.SendAsync("ReceiveStatus","User '"+ elfhUser.UserName +"' is created.");
+
                 result += returnResult.result;
 
                 return result;
