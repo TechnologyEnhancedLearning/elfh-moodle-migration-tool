@@ -336,9 +336,7 @@ namespace Moodle_Migration.Services
         }
         private async Task<string> CreateScorm(ElfhComponent elfhComponent)
         {
-            var zipBytes = await fileService.DownloadFileAsync(elfhComponent.DevelopmentId);
-            // Convert to Base64
-            string base64Zip = Convert.ToBase64String(zipBytes);
+            
 
             if (elfhComponent == null)
             {
@@ -346,6 +344,15 @@ namespace Moodle_Migration.Services
             }
             else
             {
+                var zipBytes = await fileService.DownloadFileAsync(elfhComponent.DevelopmentId);
+                if(zipBytes==null)
+                {
+                    await hubContext.Clients.All.SendAsync("ReceiveStatus", "Scorm file not found in content server.");
+                    return "Scorm file not found in content server.";
+                }
+                // Convert to Base64
+                string base64Zip = Convert.ToBase64String(zipBytes);
+
                 Dictionary<string, string> parameters = new Dictionary<string, string>
                 {
                     { "courseid", elfhComponent.MoodleCourseId.ToString() },
