@@ -71,7 +71,7 @@ namespace Moodle_Migration.Services
             WNetCancelConnection2(networkPath, 0, true); // force disconnect
             // Add connection with credentials
             int result = WNetAddConnection2(nr, password, username, 0);
-
+            await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Error connecting to network share."+ result);
             if (result == 0)
             {
                 await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Connection successful. Connected to content server.");
