@@ -62,7 +62,6 @@ namespace Moodle_Migration_WebUI.Controllers
                 }
 
                 var hasher = new PasswordHasher<User>();
-                //string password = "Test@123";
                 //string hash = hasher.HashPassword(user, password);
                 var result = hasher.VerifyHashedPassword(user, user.PasswordHash, authUser.Password);
 
