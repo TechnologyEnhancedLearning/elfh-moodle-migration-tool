@@ -7,6 +7,5 @@ namespace Moodle_Migration.Interfaces
     {
         Task<ElfhComponent> GetByIdAsync(int componentId);
         Task<List<ElfhComponent>> GetChildComponentsAsync(int componentId);
-        Task<LoggingModel> GetScormDataAsync(int elfhComponentId);
     }
 }
