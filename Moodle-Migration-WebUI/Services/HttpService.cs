@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
+using Moodle_Migration_WebUI.Models;
 using System.Text.Json;
 
 namespace Moodle_Migration.Services
@@ -110,6 +111,66 @@ namespace Moodle_Migration.Services
                 // Handle any errors that occurred during the request
                 //Console.WriteLine($"Request error: {e.Message}");
                 return ("Request error: {e.Message}", 0);
+            }
+        }
+        public async Task<(string result, int scormId, int sectionId)> PostScorm(string url, Dictionary<string, string> parameters)
+        {
+            try
+            {
+                int scormId = 0;
+                int sectionId = 0;
+                string returnResult = string.Empty;
+
+                // Create the content for the POST request
+                var content = new MultipartFormDataContent();
+                foreach (var parameter in parameters)
+                {
+                    content.Add(new StringContent(parameter.Value), parameter.Key);
+                }
+
+                // Make the POST request with the content
+                HttpResponseMessage response = await _client.PostAsync(defaultParameters + url, content);
+
+                // Ensure the request was successful
+                response.EnsureSuccessStatusCode();
+
+                // Read the response content
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                using (JsonDocument doc = JsonDocument.Parse(responseBody))
+                {
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        // Deserialize the response content into HttpResponseItemModel list
+                        List<HttpResponseItemScormModel>? items = JsonSerializer.Deserialize<List<HttpResponseItemScormModel>>(responseBody);
+                        if (items != null)
+                        {
+                            foreach (var item in items)
+                            {
+                                returnResult += $"Id: {item.ScormId} created in Moodle\n";
+                            }
+                            if (items.Count == 1)
+                            {
+                                scormId = items[0].ScormId;
+                                sectionId = items[0].Sectionid;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        returnResult = JsonSerializer.Serialize(JsonDocument.Parse(responseBody), new JsonSerializerOptions { WriteIndented = true });
+                        // Console.Write(formattedResponseBody);
+                    }
+                }
+                //Console.WriteLine();
+
+                return (returnResult, scormId, sectionId);
+            }
+            catch (HttpRequestException e)
+            {
+                // Handle any errors that occurred during the request
+                //Console.WriteLine($"Request error: {e.Message}");
+                return ("Request error: {e.Message}", 0, 0);
             }
         }
     }

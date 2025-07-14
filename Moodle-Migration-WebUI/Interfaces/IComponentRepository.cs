@@ -1,4 +1,5 @@
 ﻿using Moodle_Migration.Models;
+using Moodle_Migration_WebUI.Models;
 
 namespace Moodle_Migration.Interfaces
 {
@@ -6,6 +7,6 @@ namespace Moodle_Migration.Interfaces
     {
         Task<ElfhComponent> GetByIdAsync(int componentId);
         Task<List<ElfhComponent>> GetChildComponentsAsync(int componentId);
-        Task<string> GetDevelopmentIdForComponentAsync(int elfhComponentId);
+        Task<LoggingModel> GetScormDataAsync(int elfhComponentId);
     }
 }

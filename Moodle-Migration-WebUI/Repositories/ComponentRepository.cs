@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
+using Moodle_Migration_WebUI.Models;
 using System.Data;
 
 namespace Moodle_Migration.Repositories
@@ -26,14 +27,14 @@ namespace Moodle_Migration.Repositories
             var elfhComponents = await dbConnection.QueryAsync<ElfhComponent>("dbo.proc_MyELearningProgrammeChildComponentsAll", parameters, commandType: CommandType.StoredProcedure);
             return elfhComponents.Cast<ElfhComponent>().ToList();
         }
-        public async Task<string> GetDevelopmentIdForComponentAsync(int componentId)
+        public async Task<LoggingModel> GetScormDataAsync(int componentId)
         {
             var parameters = new DynamicParameters();
             parameters.Add("@ComponentId", componentId);
 
 
-            var developmentId = await dbConnection.ExecuteScalarAsync<string>("dbo.proc_GetDevelopmentIdForComponent", parameters, commandType: CommandType.StoredProcedure);
-            return developmentId;
+            return await dbConnection.QueryFirstOrDefaultAsync<LoggingModel>("dbo.proc_GetScormDataForComponent", parameters, commandType: CommandType.StoredProcedure);
+
         }
     }
 }
