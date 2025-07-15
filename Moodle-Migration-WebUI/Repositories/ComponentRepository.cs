@@ -1,7 +1,6 @@
 ﻿using Dapper;
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
-using Moodle_Migration_WebUI.Models;
 using System.Data;
 
 namespace Moodle_Migration.Repositories
