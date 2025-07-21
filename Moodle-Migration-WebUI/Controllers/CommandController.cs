@@ -27,15 +27,16 @@ namespace Moodle_Migration_WebUI.Controllers
         [HttpPost]
         public async Task<IActionResult> Execute(string command)
         {
-            await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Starting...");
+            string currentUser = User.Identity?.Name;
+            await _hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Starting...");
             // Simulate processing
             await Task.Delay(1000);
-            await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Processing...");
+            await _hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Processing...");
 
             var result = await _commandService.ExecuteCommand(command);
             ViewBag.Result = result;
             await Task.Delay(2000);
-            await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Completed.");
+            await _hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Completed.");
             await Task.Delay(2000);
             return View("Index");
         }

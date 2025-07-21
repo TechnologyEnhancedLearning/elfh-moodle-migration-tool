@@ -26,14 +26,6 @@ namespace Moodle_Migration.Repositories
             var elfhComponents = await dbConnection.QueryAsync<ElfhComponent>("dbo.proc_MyELearningProgrammeChildComponentsAll", parameters, commandType: CommandType.StoredProcedure);
             return elfhComponents.Cast<ElfhComponent>().ToList();
         }
-        public async Task<string> GetDevelopmentIdForComponentAsync(int componentId)
-        {
-            var parameters = new DynamicParameters();
-            parameters.Add("@ComponentId", componentId);
-
-
-            var developmentId = await dbConnection.ExecuteScalarAsync<string>("dbo.proc_GetDevelopmentIdForComponent", parameters, commandType: CommandType.StoredProcedure);
-            return developmentId;
-        }
+        
     }
 }

@@ -7,6 +7,9 @@ using System.Diagnostics;
 using System.Security.Claims;
 using Moodle_Migration_WebUI.Data;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Identity;
+using Moodle_Migration_WebUI.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace Moodle_Migration_WebUI.Controllers
 {
@@ -17,11 +20,13 @@ namespace Moodle_Migration_WebUI.Controllers
 
         private readonly ILogger<HomeController> _logger;
         private readonly LoginCredentials _loginCredentials;
+        private readonly LoggingDBContext _dbContext;
 
-        public HomeController(ILogger<HomeController> logger, IOptions<LoginCredentials> loginCredentials)
+        public HomeController(ILogger<HomeController> logger, IOptions<LoginCredentials> loginCredentials, LoggingDBContext dbContext)
         {
             _logger = logger;
             _loginCredentials = loginCredentials.Value;
+            _dbContext = dbContext;
         }
 
         public IActionResult Index()
@@ -45,16 +50,27 @@ namespace Moodle_Migration_WebUI.Controllers
         }
 
         [AllowAnonymous, HttpPost]
-        public IActionResult Login(AuthUser authUser)
+        public async Task<IActionResult> Login(AuthUser authUser)
         {
             if (ModelState.IsValid)
             {
-                if (authUser.Username == _loginCredentials.Username && authUser.Password == _loginCredentials.Password)
+                var user = await _dbContext.UserTBL.FirstOrDefaultAsync(u => u.UserName == authUser.Username);
+                if (user == null)
                 {
-                    var claims = new[] { new Claim("name", authUser.Username), new Claim(ClaimTypes.Role, "Admin") };
+                    ModelState.AddModelError("", "Invalid username or password.");
+                    return View(); // Or redirect with error
+                }
+
+                var hasher = new PasswordHasher<User>();
+                //string hash = hasher.HashPassword(user, password);
+                var result = hasher.VerifyHashedPassword(user, user.PasswordHash, authUser.Password);
+
+                if (result == PasswordVerificationResult.Success)
+                {
+                    var claims = new[] { new Claim(ClaimTypes.Name, authUser.Username), new Claim(ClaimTypes.NameIdentifier, authUser.Username), new Claim(ClaimTypes.Role, "Admin") };
                     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-                    HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity),
+                 await   HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity),
                             new AuthenticationProperties
                             {
                                 IsPersistent = true, // Optional for persistent cookies
@@ -66,14 +82,11 @@ namespace Moodle_Migration_WebUI.Controllers
 
                     HttpContext.Session.SetString("IsLoggedIn", "true"); // Set session
                     return RedirectToAction("Index", "Command");
+                }
 
-                }
-                else
-                {
-                    ModelState.AddModelError("", "Login failed. Please verify Username");
-                }
+                ModelState.AddModelError("", "Invalid username or password.");
+                return View(); // Or redirect with error
             }
-
             return View();
         }
 

@@ -9,6 +9,8 @@ using Moodle_Migration_WebUI;
 using Moodle_Migration_WebUI.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Moodle_Migration_WebUI.Hubs;
+using Moodle_Migration_WebUI.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +44,9 @@ void ConfigureServices(ServiceCollection serviceCollection, IConfigurationRoot c
     // Register configuration
     builder.Services.AddSingleton(configuration);
     builder.Services.AddSignalR();
+    builder.Services.AddAuthorization();
+    builder.Services.AddSession();
+    builder.Services.AddHttpContextAccessor();
     // Register the Moodle HttpClient
     builder.Services.AddHttpClient("MoodleClient", client =>
     {
@@ -49,7 +54,9 @@ void ConfigureServices(ServiceCollection serviceCollection, IConfigurationRoot c
     });
 
     builder.Services.AddTransient<IDbConnection>(db => new SqlConnection(configuration.GetConnectionString("ElfhHubDbConnection")));
-    builder.Services.Configure<LoginCredentials>(configuration.GetSection("LoginCredentials"));
+    builder.Services.AddDbContext<LoggingDBContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("MigrationToolLog")));
+
+   builder.Services.Configure<LoginCredentials>(configuration.GetSection("LoginCredentials"));
 
     // Register data services
     builder.Services.AddTransient<IHttpService, HttpService>();
@@ -62,6 +69,8 @@ void ConfigureServices(ServiceCollection serviceCollection, IConfigurationRoot c
     builder.Services.AddTransient<IUserRepository, UserRepository>();
     builder.Services.AddTransient<IUserGroupRepository, UserGroupRepository>();
     builder.Services.AddTransient<IComponentRepository, ComponentRepository>();
+    builder.Services.AddTransient<ILoggingRepository, LoggingRepository>();
+
 }
 
 builder.Services.AddTransient<ICommandProcessor, CommandProcessor>();
