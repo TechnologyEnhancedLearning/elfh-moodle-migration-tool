@@ -69,6 +69,7 @@ namespace Moodle_Migration.Services
                 lpRemoteName = networkPath
             };
             WNetCancelConnection2(networkPath, 0, true); // force disconnect
+            await Task.Delay(500);
             // Add connection with credentials
             int result = WNetAddConnection2(nr, password, username, 0);
             if (result == 0)
@@ -87,15 +88,11 @@ namespace Moodle_Migration.Services
                 {
                     await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Error accessing files. ");
                 }
-                finally
-                {
-                    // Optional: Disconnect
-                    WNetCancelConnection2(networkPath, 0, true);
-                }
+                
             }
             else
             {
-                await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Error connecting to network share.");
+                await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Error connecting to network share."+ result);
             }
             
 

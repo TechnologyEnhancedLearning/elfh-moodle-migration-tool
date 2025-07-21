@@ -44,6 +44,8 @@ void ConfigureServices(ServiceCollection serviceCollection, IConfigurationRoot c
     // Register configuration
     builder.Services.AddSingleton(configuration);
     builder.Services.AddSignalR();
+    builder.Services.AddAuthorization();
+    builder.Services.AddSession();
     // Register the Moodle HttpClient
     builder.Services.AddHttpClient("MoodleClient", client =>
     {

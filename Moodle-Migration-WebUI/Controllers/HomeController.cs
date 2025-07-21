@@ -67,7 +67,7 @@ namespace Moodle_Migration_WebUI.Controllers
 
                 if (result == PasswordVerificationResult.Success)
                 {
-                    var claims = new[] { new Claim("name", authUser.Username), new Claim(ClaimTypes.Role, "Admin") };
+                    var claims = new[] { new Claim(ClaimTypes.Name, authUser.Username), new Claim(ClaimTypes.NameIdentifier, authUser.Username), new Claim(ClaimTypes.Role, "Admin") };
                     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
                  await   HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity),
