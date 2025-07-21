@@ -19,7 +19,7 @@ namespace Moodle_Migration.Services
     public class FileService : IFileService
     {// Constants for WNetAddConnection2
         const int RESOURCETYPE_DISK = 0x00000001;
-
+        private readonly IHttpContextAccessor _httpContextAccessor;
         [StructLayout(LayoutKind.Sequential)]
         public class NETRESOURCE
         {
@@ -47,15 +47,16 @@ namespace Moodle_Migration.Services
             bool force);
         private readonly IConfiguration _configuration;
         private readonly IHubContext<StatusHub> _hubContext;
-        public FileService(IConfiguration configuration, IHubContext<StatusHub> hubContext)
+        public FileService(IConfiguration configuration, IHubContext<StatusHub> hubContext, IHttpContextAccessor httpContextAccessor)
         {
             _configuration = configuration;
             _hubContext = hubContext;
+            _httpContextAccessor = httpContextAccessor;
         }
        
         public async Task<byte[]> DownloadFileAsync(string developmentId)
         {
-
+            var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             //byte[] zipBytes = ZipFolderToBytes(folderPath); //This code can be used if Z drive is configured
             byte[] zipBytes = null;
 
@@ -74,25 +75,25 @@ namespace Moodle_Migration.Services
             int result = WNetAddConnection2(nr, password, username, 0);
             if (result == 0)
             {
-                await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Connection successful. Connected to content server.");
+                await _hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Connection successful. Connected to content server.");
                 Console.WriteLine("Connection successful!!! Connected to content server");
 
                 try
                 {
                     string folderPath = networkPath + "\\"+developmentId;
-                    await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Getting scorm package from elfh content server.Please wait.");
+                    await _hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Getting scorm package from elfh content server.Please wait.");
                     zipBytes = ZipFolderToBytes(folderPath);
-                    await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Scorm package retrieved from elfh content server.");
+                    await _hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Scorm package retrieved from elfh content server.");
                 }
                 catch (Exception ex)
                 {
-                    await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Error accessing files. ");
+                    await _hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Error accessing files. ");
                 }
                 
             }
             else
             {
-                await _hubContext.Clients.All.SendAsync("ReceiveStatus", "Error connecting to network share."+ result);
+                await _hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Error connecting to network share."+ result);
             }
             
 

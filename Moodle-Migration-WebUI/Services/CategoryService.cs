@@ -18,7 +18,8 @@ namespace Moodle_Migration.Services
         private readonly IFileService fileService;
         private readonly IHubContext<StatusHub> hubContext;
         private readonly ILoggingRepository loggingRepository;
-        public CategoryService(IHttpService _httpService, IComponentRepository _componentRepository, IFileService _fileService, IHubContext<StatusHub> _hubContext, ILoggingRepository _loggingRepository)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public CategoryService(IHttpService _httpService, IComponentRepository _componentRepository, IFileService _fileService, IHubContext<StatusHub> _hubContext, ILoggingRepository _loggingRepository, IHttpContextAccessor httpContextAccessor)
         {
 
             httpService = _httpService;
@@ -26,6 +27,7 @@ namespace Moodle_Migration.Services
             fileService = _fileService;
             hubContext = _hubContext;
             loggingRepository = _loggingRepository;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         private readonly IHubContext<StatusHub> _hubContext;
@@ -172,6 +174,7 @@ namespace Moodle_Migration.Services
 
         private async Task<(string result, int resultValue)> CreateMoodleCategory(ElfhComponent? elfhComponent)
         {
+            var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             if (elfhComponent == null)
             {
                 return ("Elfh component not found!", 0);
@@ -189,7 +192,7 @@ namespace Moodle_Migration.Services
                 };
 
                 Console.WriteLine($"Creating category '{elfhComponent.ComponentName}'");
-                await hubContext.Clients.All.SendAsync("ReceiveStatus", "Creating category '"+ elfhComponent.ComponentName+"'");
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Creating category '"+ elfhComponent.ComponentName+"'");
                 string url = "&wsfunction=core_course_create_categories";
 
                 return await httpService.Post(url, parameters);
@@ -226,12 +229,12 @@ namespace Moodle_Migration.Services
         private async Task<string> CreateCategoryChildren(ElfhComponent elfhComponent, List<ElfhComponent> elfhChildComponents)
         {
             string result = string.Empty;
-
+            var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             List<ElfhComponent> children = elfhChildComponents.Where(c => c.ParentComponentId == elfhComponent.ComponentId).ToList();
             if (children.Count > 0)
             {
                 Console.WriteLine($"Processing {children.Count}  child objects for '{elfhComponent.ComponentName}'");
-                await hubContext.Clients.All.SendAsync("ReceiveStatus", "Processing "+ children.Count+ " child objects for '"+ elfhComponent.ComponentName+"'");
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Processing "+ children.Count+ " child objects for '"+ elfhComponent.ComponentName+"'");
             }
             foreach (var elfhChildComponent in children)
             {
@@ -315,6 +318,7 @@ namespace Moodle_Migration.Services
         }
         private async Task<(string result, int resultValue)> CreateCourse(ElfhComponent? elfhComponent)
         {
+            var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             if (elfhComponent == null)
             {
                 return ("Elfh component not found!", 0);
@@ -359,7 +363,7 @@ namespace Moodle_Migration.Services
                 //courses[0][courseformatoptions][0][value] = string
                 //courses[0][customfields][0][shortname] = string
                 //courses[0][customfields][0][value] = string
-                await hubContext.Clients.All.SendAsync("ReceiveStatus", "Creating '"+ elfhComponent.ComponentName+  "' in moodle. Please wait.");
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Creating '"+ elfhComponent.ComponentName+  "' in moodle. Please wait.");
                 string url = "&wsfunction=core_course_create_courses";
                 var result = await httpService.Post(url, parameters);
                 return result;
@@ -368,7 +372,7 @@ namespace Moodle_Migration.Services
         private async Task<(string result, int scormId, int sectionId)> CreateScorm(ElfhComponent elfhComponent)
         {
 
-
+            var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             if (elfhComponent == null)
             {
                 return ("Elfh component not found!", 0, 0);
@@ -378,7 +382,7 @@ namespace Moodle_Migration.Services
                 var zipBytes = await fileService.DownloadFileAsync(elfhComponent.SourceDevelopmentId);
                 if (zipBytes == null)
                 {
-                    await hubContext.Clients.All.SendAsync("ReceiveStatus", "Scorm file not found in content server.");
+                    await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Scorm file not found in content server.");
                     return ("Scorm file not found in content server.", 0, 0);
                 }
                 // Convert to Base64
@@ -396,10 +400,10 @@ namespace Moodle_Migration.Services
 
 
                 string url = "&wsfunction=mod_scorm_insert_scorm_resource";
-                await hubContext.Clients.All.SendAsync("ReceiveStatus", "Creating scorm resource '" + elfhComponent.ComponentName + "'  in moodle. Please wait.");
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Creating scorm resource '" + elfhComponent.ComponentName + "'  in moodle. Please wait.");
                 Console.WriteLine("Creating scorm resource in moodle");
                 var result = await httpService.PostScorm(url, parameters);
-                await hubContext.Clients.All.SendAsync("ReceiveStatus", "Scorm " + elfhComponent.ComponentName + "'- " + result.result);
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Scorm " + elfhComponent.ComponentName + "'- " + result.result);
                 Console.WriteLine("Scorm resource '" + elfhComponent.ComponentName + "'- " + result.result);
                 return result;
             }

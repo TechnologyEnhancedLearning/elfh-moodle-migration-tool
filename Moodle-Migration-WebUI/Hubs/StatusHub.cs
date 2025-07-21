@@ -12,7 +12,7 @@ namespace Moodle_Migration_WebUI.Hubs
         }
         public async Task SendStatus(string message)
         {
-            await Clients.All.SendAsync("ReceiveStatus", message);
+            //await Clients.All.SendAsync("ReceiveStatus", message);
         }
     }
 }
