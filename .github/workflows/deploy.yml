@@ -4,14 +4,14 @@ on:
   push:
     branches:
       - main   # deploy to PROD
-      - TestDeployment   # deploy to TestDeployment
+      - TestDeployment   # deploy to TEST
 
 jobs:
   build-and-deploy:
     runs-on: windows-latest
 
     steps:
-      # 1. Checkout code
+      # 1. Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -21,27 +21,37 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      # 3. Build & publish app
+      # 3. Build & publish
       - name: Publish app
         run: dotnet publish -c Release -o ./publish
 
-      # 4. Set environment variables depending on branch
+      # 4. Set environment variables correctly
       - name: Set environment variables
         shell: pwsh
         run: |
           if ("${{ github.ref_name }}" -eq "test") {
-            Write-Host "Deploying to TEST VM"
-            Add-Content -Path $env:GITHUB_ENV -Value "VM_HOST=${{ secrets.TEST_VM_HOST }}"
-            Add-Content -Path $env:GITHUB_ENV -Value "VM_USER=${{ secrets.TEST_VM_USER }}"
-            Add-Content -Path $env:GITHUB_ENV -Value "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}"
+            "VM_HOST=${{ secrets.TEST_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_USER=${{ secrets.TEST_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
           } else {
-            Write-Host "Deploying to PROD VM"
-            Add-Content -Path $env:GITHUB_ENV -Value "VM_HOST=${{ secrets.PROD_VM_HOST }}"
-            Add-Content -Path $env:GITHUB_ENV -Value "VM_USER=${{ secrets.PROD_VM_USER }}"
-            Add-Content -Path $env:GITHUB_ENV -Value "VM_PASSWORD=${{ secrets.PROD_VM_PASSWORD }}"
+            "VM_HOST=${{ secrets.PROD_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_USER=${{ secrets.PROD_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_PASSWORD=${{ secrets.PROD_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
           }
 
-      # 5. Copy files to VM (via PowerShell Remoting / WinRM)
+      # 5. Debug check (just to confirm secrets are being set — safe version)
+      - name: Debug env
+        shell: pwsh
+        run: |
+          Write-Host "VM_HOST = $env:VM_HOST"
+          Write-Host "VM_USER = $env:VM_USER"
+          if ($env:VM_PASSWORD) {
+            Write-Host "VM_PASSWORD is set (length = $($env:VM_PASSWORD.Length))"
+          } else {
+            Write-Host "VM_PASSWORD is EMPTY!"
+          }
+
+      # 6. Copy files to VM
       - name: Copy files
         shell: pwsh
         run: |
@@ -51,7 +61,7 @@ jobs:
           Copy-Item -Path "./publish/*" -Destination "C:\inetpub\wwwroot\myapp" -Recurse -ToSession $session
           Remove-PSSession $session
 
-      # 6. Restart IIS
+      # 7. Restart IIS
       - name: Restart IIS
         shell: pwsh
         run: |
