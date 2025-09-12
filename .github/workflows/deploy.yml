@@ -11,8 +11,8 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1. Checkout
-      - name: Checkout code
+      # 1. Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       # 2. Setup .NET
@@ -25,22 +25,25 @@ jobs:
       - name: Publish app
         run: dotnet publish -c Release -o ./publish
 
-      # 4. Decide environment
+      # 4. Set environment variables depending on branch
       - name: Set environment variables
-        id: set-env
+        shell: pwsh
         run: |
           if ("${{ github.ref_name }}" -eq "test") {
-            echo "VM_HOST=${{ secrets.TEST_VM_HOST }}" >> $env:GITHUB_ENV
-            echo "VM_USER=${{ secrets.TEST_VM_USER }}" >> $env:GITHUB_ENV
-            echo "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}" >> $env:GITHUB_ENV
+            Write-Host "Deploying to TEST VM"
+            Add-Content -Path $env:GITHUB_ENV -Value "VM_HOST=${{ secrets.TEST_VM_HOST }}"
+            Add-Content -Path $env:GITHUB_ENV -Value "VM_USER=${{ secrets.TEST_VM_USER }}"
+            Add-Content -Path $env:GITHUB_ENV -Value "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}"
           } else {
-            echo "VM_HOST=${{ secrets.PROD_VM_HOST }}" >> $env:GITHUB_ENV
-            echo "VM_USER=${{ secrets.PROD_VM_USER }}" >> $env:GITHUB_ENV
-            echo "VM_PASSWORD=${{ secrets.PROD_VM_PASSWORD }}" >> $env:GITHUB_ENV
+            Write-Host "Deploying to PROD VM"
+            Add-Content -Path $env:GITHUB_ENV -Value "VM_HOST=${{ secrets.PROD_VM_HOST }}"
+            Add-Content -Path $env:GITHUB_ENV -Value "VM_USER=${{ secrets.PROD_VM_USER }}"
+            Add-Content -Path $env:GITHUB_ENV -Value "VM_PASSWORD=${{ secrets.PROD_VM_PASSWORD }}"
           }
 
-      # 5. Copy files to VM (using PowerShell remoting)
+      # 5. Copy files to VM (via PowerShell Remoting / WinRM)
       - name: Copy files
+        shell: pwsh
         run: |
           $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
           $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
@@ -50,6 +53,7 @@ jobs:
 
       # 6. Restart IIS
       - name: Restart IIS
+        shell: pwsh
         run: |
           $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
           $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
