@@ -1,0 +1,56 @@
+name: CI/CD Deploy to Windows VM
+
+on:
+  push:
+    branches:
+      - main   # deploy to PROD
+      - TestDeployment   # deploy to TEST
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+
+    steps:
+      # 1. Checkout
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup .NET
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 3. Build & publish app
+      - name: Publish app
+        run: dotnet publish -c Release -o ./publish
+
+      # 4. Decide environment
+      - name: Set environment variables
+        id: set-env
+        run: |
+          if ("${{ github.ref_name }}" -eq "test") {
+            echo "VM_HOST=${{ secrets.TEST_VM_HOST }}" >> $env:GITHUB_ENV
+            echo "VM_USER=${{ secrets.TEST_VM_USER }}" >> $env:GITHUB_ENV
+            echo "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}" >> $env:GITHUB_ENV
+          } else {
+            echo "VM_HOST=${{ secrets.PROD_VM_HOST }}" >> $env:GITHUB_ENV
+            echo "VM_USER=${{ secrets.PROD_VM_USER }}" >> $env:GITHUB_ENV
+            echo "VM_PASSWORD=${{ secrets.PROD_VM_PASSWORD }}" >> $env:GITHUB_ENV
+          }
+
+      # 5. Copy files to VM (using PowerShell remoting)
+      - name: Copy files
+        run: |
+          $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
+          $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
+          $session = New-PSSession -ComputerName $env:VM_HOST -Credential $creds -Authentication Basic
+          Copy-Item -Path "./publish/*" -Destination "C:\inetpub\wwwroot\myapp" -Recurse -ToSession $session
+          Remove-PSSession $session
+
+      # 6. Restart IIS
+      - name: Restart IIS
+        run: |
+          $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
+          $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
+          Invoke-Command -ComputerName $env:VM_HOST -Credential $creds -ScriptBlock { iisreset }
