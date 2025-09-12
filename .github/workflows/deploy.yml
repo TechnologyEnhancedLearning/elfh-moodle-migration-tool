@@ -29,7 +29,7 @@ jobs:
       - name: Set environment variables
         shell: pwsh
         run: |
-          if ("${{ github.ref_name }}" -eq "test") {
+          if ("${{ github.ref_name }}" -eq "TestDeployment") {
             "VM_HOST=${{ secrets.TEST_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
             "VM_USER=${{ secrets.TEST_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
             "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
