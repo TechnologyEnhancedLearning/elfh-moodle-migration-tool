@@ -393,7 +393,7 @@ namespace Moodle_Migration.Services
                     { "courseid", elfhComponent.MoodleCourseId.ToString() },
                     { "section", "0" },
                     { "scormname", elfhComponent.ComponentName },
-                    { "foldername", elfhComponent.DevelopmentId },
+                    { "foldername", elfhComponent.SourceDevelopmentId },
                     { "base64Zip", base64Zip }
                 };
 
