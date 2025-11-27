@@ -69,6 +69,9 @@ jobs:
       - name: Restart IIS
         shell: pwsh
         run: |
+          Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $env:VM_HOST -Force
           $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
           $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
-          Invoke-Command -ComputerName $env:VM_HOST -Credential $creds -ScriptBlock { iisreset }
+          $opts = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
+          Invoke-Command -ComputerName $env:VM_HOST -UseSSL -SessionOption $opts -Credential $creds -ScriptBlock {iisreset}
+
