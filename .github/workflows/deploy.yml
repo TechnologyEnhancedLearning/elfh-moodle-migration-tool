@@ -57,7 +57,9 @@ jobs:
         run: |
           $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
           $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
-          $session = New-PSSession -ComputerName $env:VM_HOST -UseSSL -Credential $creds
+          #Ignore certificate issues
+          $opts = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
+          $session = New-PSSession -ComputerName $env:VM_HOST -UseSSL -SessionOption $opts -Credential $creds
           Copy-Item -Path "./publish/*" -Destination "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -ToSession $session
           Remove-PSSession $session
 
