@@ -62,6 +62,12 @@ jobs:
           #Ignore certificate issues
           $opts = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
           $session = New-PSSession -ComputerName $env:VM_HOST -UseSSL -SessionOption $opts -Credential $creds
+          # Clear old files on VM
+          Invoke-Command -Session $session -ScriptBlock 
+          { 
+          Remove-Item "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -Force -ErrorAction SilentlyContinue  
+          New-Item -ItemType Directory -Path "C:\inetpub\wwwroot\MigrationToolV1.0" -Force
+          }
           Copy-Item -Path "./publish/*" -Destination "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -ToSession $session
           Remove-PSSession $session
 
