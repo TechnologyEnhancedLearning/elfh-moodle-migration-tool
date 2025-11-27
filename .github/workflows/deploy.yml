@@ -55,6 +55,8 @@ jobs:
       - name: Copy files
         shell: pwsh
         run: |
+          # Allow connecting to remote host
+          Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $env:VM_HOST -Force
           $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
           $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
           #Ignore certificate issues
