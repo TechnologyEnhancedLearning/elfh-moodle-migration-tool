@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main   # deploy to PROD
-      - TestDeployment   # deploy to TEST ENV-PROD deployment
+      - TestDeployment   # deploy to TEST ENV-PROD deployment1
 
 jobs:
   build-and-deploy:
