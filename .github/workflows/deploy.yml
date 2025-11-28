@@ -1,0 +1,75 @@
+name: Manual Deploy to Windows VM
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Select deployment environment
+        options:
+          - TEST
+          - PROD
+        required: true
+
+jobs:
+  manual-deploy:
+    runs-on: windows-latest
+
+    steps:
+      # 1. Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Setup .NET
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 3. Build & publish
+      - name: Publish app
+        run: dotnet publish -c Release -o ./publish
+
+      # 4. Set environment variables based on dropdown
+      - name: Configure environment variables
+        shell: pwsh
+        run: |
+          if ("${{ github.event.inputs.environment }}" -eq "TEST") {
+            "VM_HOST=${{ secrets.TEST_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_USER=${{ secrets.TEST_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            Write-Host "Deploying to TEST environment"
+          }
+          else {
+            "VM_HOST=${{ secrets.PROD_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_USER=${{ secrets.PROD_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_PASSWORD=${{ secrets.PROD_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            Write-Host "Deploying to PROD environment"
+          }
+
+      # 5. Copy files to VM
+      - name: Copy files to VM
+        shell: pwsh
+        run: |
+          Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $env:VM_HOST -Force
+          $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
+          $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
+          $opts = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
+          $session = New-PSSession -ComputerName $env:VM_HOST -UseSSL -SessionOption $opts -Credential $creds
+          Invoke-Command -Session $session -ScriptBlock {
+            Remove-Item "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Path "C:\inetpub\wwwroot\MigrationToolV1.0" -Force
+          }
+          Copy-Item -Path "./publish/*" -Destination "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -ToSession $session
+         
+          Remove-PSSession $session
+
+      # 6. Restart IIS
+      - name: Restart IIS
+        shell: pwsh
+        run: |
+          Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $env:VM_HOST -Force
+          $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
+          $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
+          $opts = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
+          Invoke-Command -ComputerName $env:VM_HOST -UseSSL -SessionOption $opts -Credential $creds -ScriptBlock {iisreset}
