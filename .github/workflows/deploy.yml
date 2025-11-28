@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main   # deploy to PROD
-      - TestDeployment   # deploy to TEST ENV
+      - TestDeployment   # deploy to TEST ENV-PROD depl
 
 jobs:
   build-and-deploy:
@@ -30,9 +30,9 @@ jobs:
         shell: pwsh
         run: |
           if ("${{ github.ref_name }}" -eq "TestDeployment") {
-            "VM_HOST=${{ secrets.TEST_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
-            "VM_USER=${{ secrets.TEST_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
-            "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_HOST=${{ secrets.PROD_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_USER=${{ secrets.PROD_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "VM_PASSWORD=${{ secrets.PROD_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
           } else {
             "VM_HOST=${{ secrets.PROD_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
             "VM_USER=${{ secrets.PROD_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
