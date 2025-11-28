@@ -1,14 +1,18 @@
-name: CI/CD Deploy to Windows VM
+name: Manual Deploy to Windows VM
 
 on:
-  workflow_dispatch:   # <-- enables manual run from GitHub UI
-  push:
-    branches:
-      - main   # deploy to PROD
-      - TestDeployment   # deploy to TEST ENV-PROD deployment1
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Select deployment environment
+        options:
+          - TEST
+          - PROD
+        required: true
 
 jobs:
-  build-and-deploy:
+  manual-deploy:
     runs-on: windows-latest
 
     steps:
@@ -26,52 +30,41 @@ jobs:
       - name: Publish app
         run: dotnet publish -c Release -o ./publish
 
-      # 4. Set environment variables correctly
-      - name: Set environment variables
+      # 4. Set environment variables based on dropdown
+      - name: Configure environment variables
         shell: pwsh
         run: |
-          if ("${{ github.ref_name }}" -eq "TestDeployment") {
+          if ("${{ github.event.inputs.environment }}" -eq "TEST") {
             "VM_HOST=${{ secrets.TEST_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
             "VM_USER=${{ secrets.TEST_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
             "VM_PASSWORD=${{ secrets.TEST_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
-          } else {
+            Write-Host "Deploying to TEST environment"
+          }
+          else {
             "VM_HOST=${{ secrets.PROD_VM_HOST }}" | Out-File -FilePath $env:GITHUB_ENV -Append
             "VM_USER=${{ secrets.PROD_VM_USER }}" | Out-File -FilePath $env:GITHUB_ENV -Append
             "VM_PASSWORD=${{ secrets.PROD_VM_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            Write-Host "Deploying to PROD environment"
           }
 
-      # 5. Debug check (just to confirm secrets are being set — safe version)
-      - name: Debug env
+      # 5. Copy files to VM
+      - name: Copy files to VM
         shell: pwsh
         run: |
-          Write-Host "VM_HOST = $env:VM_HOST"
-          Write-Host "VM_USER = $env:VM_USER"
-          if ($env:VM_PASSWORD) {
-            Write-Host "VM_PASSWORD is set (length = $($env:VM_PASSWORD.Length))"
-          } else {
-            Write-Host "VM_PASSWORD is EMPTY!"
-          }
-
-      # 6. Copy files to VM
-      - name: Copy files
-        shell: pwsh
-        run: |
-          # Allow connecting to remote host
           Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $env:VM_HOST -Force
           $securePassword = ConvertTo-SecureString $env:VM_PASSWORD -AsPlainText -Force
           $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
-          #Ignore certificate issues
           $opts = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
           $session = New-PSSession -ComputerName $env:VM_HOST -UseSSL -SessionOption $opts -Credential $creds
-          # Clear old files on VM
           Invoke-Command -Session $session -ScriptBlock {
-          Remove-Item "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -Force -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Path "C:\inetpub\wwwroot\MigrationToolV1.0" -Force
+            Remove-Item "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Path "C:\inetpub\wwwroot\MigrationToolV1.0" -Force
           }
           Copy-Item -Path "./publish/*" -Destination "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -ToSession $session
+         
           Remove-PSSession $session
 
-      # 7. Restart IIS
+      # 6. Restart IIS
       - name: Restart IIS
         shell: pwsh
         run: |
@@ -80,4 +73,3 @@ jobs:
           $creds = New-Object System.Management.Automation.PSCredential ($env:VM_USER, $securePassword)
           $opts = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
           Invoke-Command -ComputerName $env:VM_HOST -UseSSL -SessionOption $opts -Credential $creds -ScriptBlock {iisreset}
-
