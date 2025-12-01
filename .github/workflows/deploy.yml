@@ -60,7 +60,7 @@ jobs:
             Remove-Item "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -Force -ErrorAction SilentlyContinue
             New-Item -ItemType Directory -Path "C:\inetpub\wwwroot\MigrationToolV1.0" -Force
           }
-          Copy-Item -Path "./publish/*" -Destination "C:\inetpub\wwwroot\MigrationToolV1.0" -Recurse -ToSession $session
+          Copy-Item -Path "./publish/*" -Destination "C:\inetpub\wwwroot\MigrationTool" -Recurse -ToSession $session
          
           Remove-PSSession $session
 
