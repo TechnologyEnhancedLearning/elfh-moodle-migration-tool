@@ -1,4 +1,4 @@
-name: Manual Deploy to Windows VM
+name: Deploy Migration Tool
 
 on:
   workflow_dispatch:
