@@ -20,14 +20,14 @@ namespace Moodle_Migration.Repositories
         public async Task<List<ElfhUser>> SearchAsync(ElfhUserSearchModel searchModel)
         {
             var parameters = new DynamicParameters();
-            parameters.Add("@UserName", searchModel.UserName);
-	        parameters.Add("@FirstName", searchModel.FirstName);
-            parameters.Add("@LastName", searchModel.LastName);
-            parameters.Add("@EmailAddress", searchModel.EmailAddress);
-            parameters.Add("@PreferredName", searchModel.PreferredName);
+            parameters.Add("@UserName", string.IsNullOrEmpty(searchModel.UserName) ? null : searchModel.UserName);
+            parameters.Add("@FirstName", string.IsNullOrEmpty(searchModel.UserName) ? null : searchModel.FirstName);
+            parameters.Add("@LastName", string.IsNullOrEmpty(searchModel.UserName) ? null : searchModel.LastName);
+            parameters.Add("@EmailAddress", string.IsNullOrEmpty(searchModel.UserName) ? null : searchModel.EmailAddress);
+            parameters.Add("@PreferredName", string.IsNullOrEmpty(searchModel.UserName) ? null : searchModel.PreferredName);
             parameters.Add("@CountryId", searchModel.CountryId == 0 ? null : searchModel.CountryId);
-            parameters.Add("@DefaultProjectId", searchModel.DefaultProjectId);
-            parameters.Add("@searchUserGroupId", searchModel.SearchUserGroupId);
+            parameters.Add("@DefaultProjectId", searchModel.DefaultProjectId == 0 ? null : searchModel.DefaultProjectId);
+            parameters.Add("@searchUserGroupId", searchModel.SearchUserGroupId == 0 ? null : searchModel.SearchUserGroupId);
             parameters.Add("@searchUserTypeUserGroupId", searchModel.SearchUserTypeUserGroupId);
             parameters.Add("@Page", searchModel.Page == 0 ? 1 : searchModel.Page);
             parameters.Add("@PageSize", searchModel.PageSize == 0 ? 99999 : searchModel.PageSize);
