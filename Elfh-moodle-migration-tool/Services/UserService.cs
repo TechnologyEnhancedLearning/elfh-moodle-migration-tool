@@ -267,9 +267,9 @@ namespace Moodle_Migration.Services
                 Dictionary<string, string> parameters = new Dictionary<string, string>
                 {
                     { "users[0][createpassword]", "1" },
-                    { "users[0][username]", elfhUser.UserName.ToLower() },
+                    { "users[0][username]", elfhUser.UserId.ToString() },
                     { "users[0][email]", elfhUser.EmailAddress },
-                    { "users[0][auth]", "manual" },
+                    { "users[0][auth]", "oidc" },
                     { "users[0][firstname]", elfhUser.FirstName },
                     { "users[0][lastname]", elfhUser.LastName },
                     { "users[0][maildisplay]", "1" },
