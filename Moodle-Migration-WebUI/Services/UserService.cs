@@ -164,7 +164,7 @@ namespace Moodle_Migration.Services
                             result = result + await CreateElfhUser(user);
 
                             // Assign the user to the user group in Moodle
-                            result = result + await AssignUserToCohort(user.UserName, elfhUserGroupId);
+                            result = result + await AssignUserToCohort(user.UserId, elfhUserGroupId);
                         }
 
                     }
@@ -207,7 +207,7 @@ namespace Moodle_Migration.Services
                                 // Create the user in Moodle
                                 result +=  await CreateElfhUser(user);
                             // Assign the user to the user group in Moodle
-                            result = result + await AssignUserToCohort(user.UserName, elfhUserGroupId);
+                            result = result + await AssignUserToCohort(user.UserId, elfhUserGroupId);
                             }
                         //}
                     }
@@ -220,7 +220,7 @@ namespace Moodle_Migration.Services
             return result;
         }
 
-        private async Task<string> AssignUserToCohort(string userName, int elfhUserGroupId)
+        private async Task<string> AssignUserToCohort(int userName, int elfhUserGroupId)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             string result = string.Empty;
@@ -292,9 +292,9 @@ namespace Moodle_Migration.Services
                 Dictionary<string, string> parameters = new Dictionary<string, string>
                 {
                     { "users[0][createpassword]", "1" },
-                    { "users[0][username]", elfhUser.UserName.ToLower() },
+                    { "users[0][username]", elfhUser.UserId.ToString() },
                     { "users[0][email]", elfhUser.EmailAddress },
-                    { "users[0][auth]", "manual" },
+                    { "users[0][auth]", "oidc" },
                     { "users[0][firstname]", elfhUser.FirstName },
                     { "users[0][lastname]", elfhUser.LastName },
                     { "users[0][maildisplay]", "1" },

@@ -398,3 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 /appsettings.Development.json
 /Moodle-Migration-WebUI/appsettings.Development.json
+/Elfh-moodle-migration-tool/appsettings.json
