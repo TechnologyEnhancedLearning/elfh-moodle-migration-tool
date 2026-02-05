@@ -145,7 +145,7 @@ namespace Moodle_Migration.Services
                             result = result + await CreateElfhUser(user);
 
                             // Assign the user to the user group in Moodle
-                            result = result + await AssignUserToCohort(user.UserName, elfhUserGroupId);
+                            result = result + await AssignUserToCohort(user.UserId, elfhUserGroupId);
                         }
 
                     }
@@ -188,7 +188,7 @@ namespace Moodle_Migration.Services
                                 result +=  await CreateElfhUser(user);
 
                                 // Assign the user to the user group in Moodle
-                                result = result + await AssignUserToCohort(user.UserName, elfhUserGroupId);
+                                result = result + await AssignUserToCohort(user.UserId, elfhUserGroupId);
                             }
                         }
                     }
@@ -201,7 +201,7 @@ namespace Moodle_Migration.Services
             return result;
         }
 
-        private async Task<string> AssignUserToCohort(string userName, int elfhUserGroupId)
+        private async Task<string> AssignUserToCohort(int userName, int elfhUserGroupId)
         {
             string result = string.Empty;
             string additionalParameters = string.Empty;
