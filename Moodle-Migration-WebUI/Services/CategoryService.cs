@@ -230,7 +230,13 @@ namespace Moodle_Migration.Services
         {
             string result = string.Empty;
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
-            List<ElfhComponent> children = elfhChildComponents.Where(c => c.ParentComponentId == elfhComponent.ComponentId).OrderBy(c=>c.Position).ThenBy(c => c.ComponentId).ToList();
+            var parentId = elfhComponent.ComponentId;
+
+            var folderIds = elfhChildComponents.Where(c => c.ParentComponentId == parentId && c.ComponentTypeId == (int)ComponentTypeEnum.Folder).Select(c => c.ComponentId).ToHashSet();
+
+            List<ElfhComponent> children = elfhChildComponents.Where(c =>(c.ParentComponentId == parentId && c.ComponentTypeId != (int)ComponentTypeEnum.Folder)|| folderIds.Contains(c.ParentComponentId))
+                .OrderBy(c => c.Position).ThenBy(c => c.ComponentId).ToList();
+
             if (children.Count > 0)
             {
                 Console.WriteLine($"Processing {children.Count}  child objects for '{elfhComponent.ComponentName}'");
