@@ -60,6 +60,7 @@ void ConfigureServices(ServiceCollection serviceCollection, IConfigurationRoot c
 
     // Register data services
     builder.Services.AddTransient<IHttpService, HttpService>();
+    builder.Services.AddTransient<ICohortService, CohortService>();
     builder.Services.AddTransient<IFileService, FileService>();
     builder.Services.AddTransient<IUserService, UserService>();
     builder.Services.AddTransient<ICourseService, CourseService>();
