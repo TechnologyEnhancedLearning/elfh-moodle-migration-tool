@@ -6,6 +6,7 @@ using Moodle_Migration.Models;
 using Moodle_Migration_WebUI.Hubs;
 using System;
 using System.Drawing;
+using System.Net;
 using System.Reflection;
 using System.Text.Json;
 
@@ -320,6 +321,43 @@ namespace Moodle_Migration.Services
             }
         }
 
+        private async Task<bool> UserExistsInMoodle(string username)
+        {
+            var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            try
+            {
+                string encodedUsername = WebUtility.UrlEncode(username);
+                string additionalParameters = $"&criteria[0][key]=username&criteria[0][value]={encodedUsername}";
+                string url = $"&wsfunction=core_user_get_users{additionalParameters}";
+                string response = await httpService.Get(url);
+
+                if (string.IsNullOrEmpty(response))
+                {
+                    return false;
+                }
+
+                using (JsonDocument doc = JsonDocument.Parse(response))
+                {
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("users", out var usersElement))
+                    {
+                        if (usersElement.ValueKind == JsonValueKind.Array && usersElement.GetArrayLength() > 0)
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = $"Error checking if user exists in Moodle: {ex.Message}";
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", errorMessage);
+                return false;
+            }
+        }
+
         private async Task<string> CreateElfhUser(ElfhUser? elfhUser)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
@@ -331,10 +369,21 @@ namespace Moodle_Migration.Services
             }
             else
             {
+                string username = elfhUser.UserId.ToString();
+
+                // Check if user already exists in Moodle
+                bool userExists = await UserExistsInMoodle(username);
+                if (userExists)
+                {
+                    result = $"\nUser '{elfhUser.UserName}' already exists in Moodle. Skipping creation.\n";
+                    await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "User '" + elfhUser.UserName + "' already exists. Skipping creation.");
+                    return result;
+                }
+
                 Dictionary<string, string> parameters = new Dictionary<string, string>
                 {
                     { "users[0][createpassword]", "1" },
-                    { "users[0][username]", elfhUser.UserId.ToString() },
+                    { "users[0][username]", username },
                     { "users[0][email]", elfhUser.EmailAddress },
                     { "users[0][auth]", "oidc" },
                     { "users[0][firstname]", elfhUser.FirstName },
