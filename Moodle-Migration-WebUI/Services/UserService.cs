@@ -6,21 +6,24 @@ using Moodle_Migration.Models;
 using Moodle_Migration_WebUI.Hubs;
 using System;
 using System.Drawing;
+using System.Net;
 using System.Reflection;
 using System.Text.Json;
 
 namespace Moodle_Migration.Services
 {
-    public class UserService: IUserService
+    public class UserService : IUserService
     {
         private readonly IHttpService httpService;
+        private readonly ICohortService cohortService;
         private readonly IUserRepository userRepository;
         private readonly IUserGroupRepository userGroupRepository;
         private readonly IHubContext<StatusHub> hubContext;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public UserService(IHttpService _httpService, IUserRepository _userRepository, IUserGroupRepository _userGroupRepository, IHubContext<StatusHub> _hubContext, IHttpContextAccessor httpContextAccessor)
+        public UserService(IHttpService _httpService, ICohortService _cohortService, IUserRepository _userRepository, IUserGroupRepository _userGroupRepository, IHubContext<StatusHub> _hubContext, IHttpContextAccessor httpContextAccessor)
         {
             httpService = _httpService;
+            cohortService = _cohortService;
             userRepository = _userRepository;
             userGroupRepository = _userGroupRepository;
             hubContext = _hubContext;
@@ -73,7 +76,7 @@ namespace Moodle_Migration.Services
                 {
                     if (!parameters[i].Contains("="))
                     {
-                        return($"Parameters must be in the format 'key=value' ({parameters[i]})");
+                        return ($"Parameters must be in the format 'key=value' ({parameters[i]})");
                     }
                     var key = parameters[i].Split('=')[0];
                     var value = parameters[i].Split('=')[1];
@@ -94,147 +97,187 @@ namespace Moodle_Migration.Services
             {
                 return "No user data specified!";
             }
-            if (parameters.Length > 1)
+
+            // Parse parameters - allow multiple key=value pairs
+            var parsedParams = new Dictionary<string, string>();
+            foreach (var param in parameters)
             {
-                //Console.WriteLine("A single parameter in the format 'parameter=value' is required.");
-                //Console.WriteLine("(The 'parameter' can be 'id', 'username' or 'ugid')");
-                return "A single parameter in the format 'parameter=value' is required. \n (The 'parameter' can be 'id', 'username' or 'ugid')";
-            }
-            if (!parameters[0].Contains("="))
-            {
-                return "Parameters must be in the format 'parameter=value')";
+                if (!param.Contains("="))
+                {
+                    return "Parameters must be in the format 'parameter=value'";
+                }
+                var parts = param.Split('=');
+                if (parts.Length == 2)
+                {
+                    parsedParams[parts[0]] = parts[1];
+                }
             }
 
-            var parameter = parameters[0].Split('=')[0];
-            var value = parameters[0].Split('=')[1];
+            if (parsedParams.Count == 0)
+            {
+                return "No valid parameters found!";
+            }
+
             ElfhUser? elfhUser = null;
 
-            switch (parameter)
+            // Handle single user migration (id or username)
+            if (parsedParams.ContainsKey("id"))
             {
-                case "id":
-                    int elfhUserId = 0;
-                    Int32.TryParse(value, out elfhUserId);
+                int elfhUserId = 0;
+                Int32.TryParse(parsedParams["id"], out elfhUserId);
 
-                    if (elfhUserId == 0)
+                if (elfhUserId == 0)
+                {
+                    return "Invalid user ID!";
+                }
+                elfhUser = await userRepository.GetByIdAsync(elfhUserId);
+                result = await CreateElfhUser(elfhUser);
+            }
+            else if (parsedParams.ContainsKey("username"))
+            {
+                var value = parsedParams["username"];
+                if (value.IsNullOrEmpty())
+                {
+                    return "Empty username!";
+                }
+                elfhUser = await userRepository.GetByUserNameAsync(value);
+                result = await CreateElfhUser(elfhUser);
+            }
+            else if (parsedParams.ContainsKey("ugidweb") || parsedParams.ContainsKey("ugid"))
+            {
+                // Handle user group migration
+                var ugidKey = parsedParams.ContainsKey("ugidweb") ? "ugidweb" : "ugid";
+                int elfhUserGroupId = 0;
+                Int32.TryParse(parsedParams[ugidKey], out elfhUserGroupId);
+
+                if (elfhUserGroupId == 0)
+                {
+                    return "Invalid user group ID!";
+                }
+
+                var elfhUserGroup = await userGroupRepository.GetByIdAsync(elfhUserGroupId);
+
+                if (elfhUserGroup == null)
+                {
+                    return "User group not found!";
+                }
+
+                // Determine target cohort
+                string targetCohortIdentifier = null;
+                bool createdNewCohort = false;
+
+                if (parsedParams.ContainsKey("ugid"))
+                {
+                    targetCohortIdentifier = "elfh-" + parsedParams["ugid"];
+                }
+                else if (parsedParams.ContainsKey("ugidweb"))
+                {
+                    targetCohortIdentifier = "elfh-" + parsedParams["ugidweb"];
+                }
+
+                // Create or validate cohort
+                MoodleCohort targetCohort = null;
+                targetCohort = await cohortService.GetCohortByIdNumberAsync(targetCohortIdentifier);
+
+
+                if (targetCohort != null)
+                {
+                    if (targetCohort == null)
                     {
-                        return "Invalid user ID!";
+                        result = $"ERROR: Target cohort '{targetCohortIdentifier}' not found in Moodle!\n";
+                        await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", result);
+                        return result;
                     }
-                    elfhUser = await userRepository.GetByIdAsync(elfhUserId);
-                    result = await CreateElfhUser(elfhUser);
-                    break;
-                case "username":
 
-                    if (value.IsNullOrEmpty())
+                    await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", $"Mapping users to existing cohort '{targetCohort.Name}' (ID: {targetCohort.Id}).");
+                    result += $"Mapping users to existing cohort '{targetCohort.Name}' (ID: {targetCohort.Id}).\n";
+                }
+                else
+                {
+                    // Create new cohort
+                    result += await CreateMoodleCohort(elfhUserGroup);
+                    createdNewCohort = true;
+                }
+
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", $"Creating any missing users and assigning them to the cohort.");
+                result += $"Creating any missing users and assigning them to the cohort.\n";
+
+                int successCount = 0;
+                int failCount = 0;
+
+                var elfhUserList = await userRepository.SearchAsync(
+                   new ElfhUserSearchModel() { SearchUserGroupId = elfhUserGroup.UserGroupId }
+               );
+
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", $"There are {elfhUserList.Count()} elfh user(s) in the user group '{elfhUserGroup.UserGroupName}'.");
+                result += $"There are {elfhUserList.Count()} elfh user(s) in the user group '{elfhUserGroup.UserGroupName}'.\n";
+
+
+                foreach (var user in elfhUserList)
+                {
+                    // Create the user in Moodle
+                    var createResult = await CreateElfhUser(user);
+                    result += createResult;
+
+                    // Assign the user to the cohort
+                    var assignResult = await AssignUserToCohort(user.UserId, elfhUserGroupId, targetCohort?.Id, !createdNewCohort);
+                    result += assignResult;
+
+                    // Track success/failure - check for Moodle API error indicators
+                    // Success: no "error" in response or contains "assigned" indication
+                    // Moodle API returns error objects with "errorcode" and "message" keys
+                    if (!assignResult.Contains("errorcode") && !assignResult.Contains("\"error\""))
                     {
-                        return "Empty username!";
-                    }
-                    elfhUser = await userRepository.GetByUserNameAsync(value);
-                    result = await CreateElfhUser(elfhUser);
-                    break;
-                case "ugidweb":
-                    int elfhUserGroupId = 0;
-                    Int32.TryParse(value, out elfhUserGroupId);
-
-                    if (elfhUserGroupId == 0)
-                    {
-                        return "Invalid user group ID!";
-                    }
-
-                    var elfhUserGroup = await userGroupRepository.GetByIdAsync(elfhUserGroupId);
-
-                    if (elfhUserGroup == null)
-                    {
-                        return "User group not found!";
+                        successCount++;
                     }
                     else
                     {
-
-                        result = await CreateMoodleCohort(elfhUserGroup);
-
-                        var elfhUserList = await userRepository.SearchAsync(
-                            new ElfhUserSearchModel() { SearchUserGroupId = elfhUserGroup.UserGroupId }
-                            );
-                        await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "There are  " + elfhUserList.Count() + " elfh user(s) in the user group '"+ elfhUserGroup.UserGroupName+"' .");
-                        await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "This will create any missing users and assign them to the  '" + elfhUserGroup.UserGroupName + "' user group.");
-                        result += $"This will create any missing users and assign them to the '{elfhUserGroup.UserGroupName}' user group.\n ";
-
-                        foreach (var user in elfhUserList)
-                        {
-                            // Create the user in Moodle
-                            result = result + await CreateElfhUser(user);
-
-                            // Assign the user to the user group in Moodle
-                            result = result + await AssignUserToCohort(user.UserId, elfhUserGroupId);
-                        }
-
+                        failCount++;
                     }
-                    break;
-                case "ugid":
-                    elfhUserGroupId = 0;
-                    Int32.TryParse(value, out elfhUserGroupId);
+                }
 
-                    if (elfhUserGroupId == 0)
-                    {
-                        return "Invalid user group ID!";
-                    }
+                string summary = $"Migration Summary: Total users: {elfhUserList.Count()}, Successfully assigned: {successCount}";
+                if (failCount > 0)
+                    summary += $", Failed: {failCount}";
 
-                    elfhUserGroup = await userGroupRepository.GetByIdAsync(elfhUserGroupId);
-
-                    if (elfhUserGroup == null)
-                    {
-                        return "User group not found!";
-                    }
-                    else
-                    {
-
-                        result = await CreateMoodleCohort(elfhUserGroup);
-
-                        var elfhUserList = await userRepository.SearchAsync(
-                            new ElfhUserSearchModel() { SearchUserGroupId = elfhUserGroup.UserGroupId }
-                            );
-
-                        Console.WriteLine($"There are {elfhUserList.Count()} elfh user(s) in the user group '{elfhUserGroup.UserGroupName}'");
-                        await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "There are  " + elfhUserList.Count() + " elfh user(s) in the user group '" + elfhUserGroup.UserGroupName + "' .");
-                        //Console.WriteLine($"Would you like to create any missing users and asign them to the '{elfhUserGroup.UserGroupName}' user group?");
-                        //Console.WriteLine("Press 'Y' to continue or any other key to exit.");
-
-                        //ConsoleKeyInfo keyInfo = Console.ReadKey();
-                        //Console.WriteLine();
-                        //if (keyInfo.KeyChar == 'Y' || keyInfo.KeyChar == 'y')
-                        //{
-                            foreach (var user in elfhUserList)
-                            {
-                                // Create the user in Moodle
-                                result +=  await CreateElfhUser(user);
-                            // Assign the user to the user group in Moodle
-                            result = result + await AssignUserToCohort(user.UserId, elfhUserGroupId);
-                            }
-                        //}
-                    }
-                    break;
-                default:
-                    result = "Parameter must be either 'id', 'username' or 'ugid'";
-                    break;
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", summary);
+                result += $"\n{summary}\n";
+            }
+            else
+            {
+                result = "Parameter must be either 'id', 'username', 'ugid' or 'ugidweb'";
             }
 
             return result;
         }
 
-        private async Task<string> AssignUserToCohort(int userName, int elfhUserGroupId)
+        private async Task<string> AssignUserToCohort(int userName, int elfhUserGroupId, int? targetCohortId = null, bool isExistingCohort = false)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             string result = string.Empty;
             string additionalParameters = string.Empty;
-            additionalParameters += "&members[0][cohorttype][type]=idnumber";
-            additionalParameters += $"&members[0][cohorttype][value]=elfh-{elfhUserGroupId}";
+
+            if (isExistingCohort && targetCohortId.HasValue)
+            {
+                // Assign to specific existing cohort by ID
+                additionalParameters += "&members[0][cohorttype][type]=id";
+                additionalParameters += $"&members[0][cohorttype][value]={targetCohortId}";
+            }
+            else
+            {
+                // Assign to cohort identified by idnumber (new or existing with elfh prefix)
+                additionalParameters += "&members[0][cohorttype][type]=idnumber";
+                additionalParameters += $"&members[0][cohorttype][value]=elfh-{elfhUserGroupId}";
+            }
+
             additionalParameters += "&members[0][usertype][type]=username";
             additionalParameters += $"&members[0][usertype][value]={userName}";
 
             string url = $"&wsfunction=core_cohort_add_cohort_members{additionalParameters}";
 
-            result = $"Assigning '{userName}' to cohort.";
-            await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Assigning  '"+ userName + "' to cohort.");
-            result +=  await httpService.Get(url);
+            result = $"Assigning user '{userName}' to cohort.\n";
+            await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", $"Assigning user '{userName}' to cohort.");
+            result += await httpService.Get(url);
 
             return result;
         }
@@ -267,7 +310,7 @@ namespace Moodle_Migration.Services
                 if (!string.IsNullOrEmpty(returnMessage))
                 {
                     returnMessage += $"Cohort '{elfhUserGroup.UserGroupName}' created in Moodle\n";
-                    await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Cohort '"+elfhUserGroup.UserGroupName+"' created in Moodle");
+                    await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Cohort '" + elfhUserGroup.UserGroupName + "' created in Moodle");
 
                 }
                 else
@@ -275,6 +318,43 @@ namespace Moodle_Migration.Services
                     returnMessage = $"FAILED to create Cohort '{elfhUserGroup.UserGroupName}' in Moodle\n";
                 }
                 return returnMessage;
+            }
+        }
+
+        private async Task<bool> UserExistsInMoodle(string username)
+        {
+            var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            try
+            {
+                string encodedUsername = WebUtility.UrlEncode(username);
+                string additionalParameters = $"&criteria[0][key]=username&criteria[0][value]={encodedUsername}";
+                string url = $"&wsfunction=core_user_get_users{additionalParameters}";
+                string response = await httpService.Get(url);
+
+                if (string.IsNullOrEmpty(response))
+                {
+                    return false;
+                }
+
+                using (JsonDocument doc = JsonDocument.Parse(response))
+                {
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("users", out var usersElement))
+                    {
+                        if (usersElement.ValueKind == JsonValueKind.Array && usersElement.GetArrayLength() > 0)
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = $"Error checking if user exists in Moodle: {ex.Message}";
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", errorMessage);
+                return false;
             }
         }
 
@@ -289,10 +369,21 @@ namespace Moodle_Migration.Services
             }
             else
             {
+                string username = elfhUser.UserId.ToString();
+
+                // Check if user already exists in Moodle
+                bool userExists = await UserExistsInMoodle(username);
+                if (userExists)
+                {
+                    result = $"\nUser '{elfhUser.UserName}' already exists in Moodle. Skipping creation.\n";
+                    await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "User '" + elfhUser.UserName + "' already exists. Skipping creation.");
+                    return result;
+                }
+
                 Dictionary<string, string> parameters = new Dictionary<string, string>
                 {
                     { "users[0][createpassword]", "1" },
-                    { "users[0][username]", elfhUser.UserId.ToString() },
+                    { "users[0][username]", username },
                     { "users[0][email]", elfhUser.EmailAddress },
                     { "users[0][auth]", "oidc" },
                     { "users[0][firstname]", elfhUser.FirstName },
@@ -312,9 +403,9 @@ namespace Moodle_Migration.Services
                 string url = $"&wsfunction=core_user_create_users";
 
                 result = $"\nCreating user '{elfhUser.UserName}'\n";
-                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Creating user '"+ elfhUser.UserName + "' ");
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Creating user '" + elfhUser.UserName + "' ");
                 var returnResult = await httpService.Post(url, parameters);
-                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus","User '"+ elfhUser.UserName +"' is created.");
+                await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "User '" + elfhUser.UserName + "' is created.");
 
                 result += returnResult.result;
 
