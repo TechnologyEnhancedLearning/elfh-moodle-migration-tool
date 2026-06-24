@@ -382,7 +382,7 @@ namespace Moodle_Migration.Services
 
                 Dictionary<string, string> parameters = new Dictionary<string, string>
                 {
-                    { "users[0][createpassword]", "1" },
+                   // { "users[0][createpassword]", "1" },
                     { "users[0][username]", username },
                     { "users[0][email]", elfhUser.EmailAddress },
                     { "users[0][auth]", "oidc" },
