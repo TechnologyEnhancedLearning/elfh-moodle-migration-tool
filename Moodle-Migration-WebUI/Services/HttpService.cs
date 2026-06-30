@@ -2,6 +2,7 @@
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
 using Moodle_Migration_WebUI.Models;
+using Moodle_Migration_WebUI.Repositories;
 using System.Text.Json;
 
 namespace Moodle_Migration.Services
@@ -12,23 +13,48 @@ namespace Moodle_Migration.Services
         private readonly IConfiguration _configuration;
         private readonly HttpClient _client;
         private string defaultParameters;
-
-        public HttpService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly LoggingDBContext _context;
+        public HttpService(IHttpClientFactory httpClientFactory, IConfiguration configuration,IHttpContextAccessor httpContextAccessor,LoggingDBContext context)
         {
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
+            _context = context;
+        }
+        private HttpClient CreateClient(int instanceId)
+        {
+            
+            if (instanceId == null)
+            {
+                throw new Exception(
+                    "No Moodle instance selected.");
+            }
 
-            // Create an HttpClient instance
-            _client = _httpClientFactory.CreateClient("MoodleClient");
+            var instance =
+                _context.MoodleInstances
+                    .FirstOrDefault(x => x.Id == instanceId);
 
-            defaultParameters = $"?wstoken={_configuration["MoodleApi:wstoken"]}"
-                              + $"&moodlewsrestformat={_configuration["MoodleApi:moodlewsrestformat"]}";
+            if (instance == null)
+            {
+                throw new Exception(
+                    "Invalid Moodle instance.");
+            }
+
+            var client = _httpClientFactory.CreateClient();
+            client.BaseAddress = new Uri(instance.BaseUrl);
+
+            defaultParameters =
+                $"?wstoken={instance.WsToken}" +
+                $"&moodlewsrestformat={instance.RestFormat}";
+
+            return client;
         }
 
-        public async Task<string> Get(string url)
+        public async Task<string> Get(string url, int instanceId)
         {
             string result;
-
+            var _client = CreateClient(instanceId);
             try
             {
                 // Make the GET request
@@ -55,10 +81,11 @@ namespace Moodle_Migration.Services
             return result;
         }
 
-        public async Task<(string result, int resultValue)> Post(string url, Dictionary<string, string> parameters)
+        public async Task<(string result, int resultValue)> Post(string url, Dictionary<string, string> parameters, int instanceId)
         {
             try
             {
+                var _client = CreateClient(instanceId);
                 int returnId = 0;
                 string returnResult = string.Empty;
 
@@ -113,10 +140,11 @@ namespace Moodle_Migration.Services
                 return ("Request error: {e.Message}", 0);
             }
         }
-        public async Task<(string result, int scormId, int sectionId)> PostScorm(string url, Dictionary<string, string> parameters)
+        public async Task<(string result, int scormId, int sectionId)> PostScorm(string url, Dictionary<string, string> parameters, int instanceId)
         {
             try
             {
+                var _client = CreateClient(instanceId);
                 int scormId = 0;
                 int sectionId = 0;
                 string returnResult = string.Empty;

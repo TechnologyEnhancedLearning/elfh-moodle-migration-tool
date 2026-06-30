@@ -21,5 +21,7 @@ namespace Moodle_Migration_WebUI.Models
         public int CreateUser { get; set; }
         public DateTimeOffset CreateDate { get; set; }
         public DateTimeOffset AmendDate { get; set; }
+        public int MoodleInstanceId { get; set; }
+        
     }
 }

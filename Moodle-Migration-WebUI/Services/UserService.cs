@@ -29,7 +29,7 @@ namespace Moodle_Migration.Services
             hubContext = _hubContext;
             _httpContextAccessor = httpContextAccessor;
         }
-        public async Task<string> ProcessUser(string[] args)
+        public async Task<string> ProcessUser(string[] args,int instanceId)
         {
             string result = string.Empty;
             if (args.Length < 2)
@@ -45,11 +45,11 @@ namespace Moodle_Migration.Services
                 {
                     case "-d":
                     case "--details":
-                        result = await GetUsers(parameters);
+                        result = await GetUsers(parameters, instanceId);
                         break;
                     case "-c":
                     case "--create":
-                        result = await CreateUsers(parameters);
+                        result = await CreateUsers(parameters, instanceId);
                         break;
                     default:
                         result = "Invalid user option!";
@@ -62,7 +62,7 @@ namespace Moodle_Migration.Services
             return result;
         }
 
-        private async Task<string> GetUsers(string[] parameters)
+        private async Task<string> GetUsers(string[] parameters, int instanceId)
         {
             string additionalParameters = string.Empty;
 
@@ -85,10 +85,10 @@ namespace Moodle_Migration.Services
             }
 
             string url = $"&wsfunction=core_user_get_users{additionalParameters}";
-            return await httpService.Get(url);
+            return await httpService.Get(url, instanceId);
         }
 
-        private async Task<string> CreateUsers(string[] parameters)
+        private async Task<string> CreateUsers(string[] parameters, int instanceId)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             string result = string.Empty;
@@ -131,7 +131,7 @@ namespace Moodle_Migration.Services
                     return "Invalid user ID!";
                 }
                 elfhUser = await userRepository.GetByIdAsync(elfhUserId);
-                result = await CreateElfhUser(elfhUser);
+                result = await CreateElfhUser(elfhUser, instanceId);
             }
             else if (parsedParams.ContainsKey("username"))
             {
@@ -141,7 +141,7 @@ namespace Moodle_Migration.Services
                     return "Empty username!";
                 }
                 elfhUser = await userRepository.GetByUserNameAsync(value);
-                result = await CreateElfhUser(elfhUser);
+                result = await CreateElfhUser(elfhUser, instanceId);
             }
             else if (parsedParams.ContainsKey("ugidweb") || parsedParams.ContainsKey("ugid"))
             {
@@ -177,7 +177,7 @@ namespace Moodle_Migration.Services
 
                 // Create or validate cohort
                 MoodleCohort targetCohort = null;
-                targetCohort = await cohortService.GetCohortByIdNumberAsync(targetCohortIdentifier);
+                targetCohort = await cohortService.GetCohortByIdNumberAsync(targetCohortIdentifier, instanceId);
 
 
                 if (targetCohort != null)
@@ -195,7 +195,7 @@ namespace Moodle_Migration.Services
                 else
                 {
                     // Create new cohort
-                    result += await CreateMoodleCohort(elfhUserGroup);
+                    result += await CreateMoodleCohort(elfhUserGroup, instanceId);
                     createdNewCohort = true;
                 }
 
@@ -216,11 +216,11 @@ namespace Moodle_Migration.Services
                 foreach (var user in elfhUserList)
                 {
                     // Create the user in Moodle
-                    var createResult = await CreateElfhUser(user);
+                    var createResult = await CreateElfhUser(user, instanceId);
                     result += createResult;
 
                     // Assign the user to the cohort
-                    var assignResult = await AssignUserToCohort(user.UserId, elfhUserGroupId, targetCohort?.Id, !createdNewCohort);
+                    var assignResult = await AssignUserToCohort(user.UserId, elfhUserGroupId, instanceId, targetCohort?.Id, !createdNewCohort);
                     result += assignResult;
 
                     // Track success/failure - check for Moodle API error indicators
@@ -251,7 +251,7 @@ namespace Moodle_Migration.Services
             return result;
         }
 
-        private async Task<string> AssignUserToCohort(int userName, int elfhUserGroupId, int? targetCohortId = null, bool isExistingCohort = false)
+        private async Task<string> AssignUserToCohort(int userName, int elfhUserGroupId, int instanceId,int? targetCohortId = null, bool isExistingCohort = false)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             string result = string.Empty;
@@ -277,12 +277,12 @@ namespace Moodle_Migration.Services
 
             result = $"Assigning user '{userName}' to cohort.\n";
             await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", $"Assigning user '{userName}' to cohort.");
-            result += await httpService.Get(url);
+            result += await httpService.Get(url, instanceId);
 
             return result;
         }
 
-        private async Task<string> CreateMoodleCohort(ElfhUserGroup elfhUserGroup)
+        private async Task<string> CreateMoodleCohort(ElfhUserGroup elfhUserGroup,int instanceId)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             if (elfhUserGroup == null)
@@ -305,7 +305,7 @@ namespace Moodle_Migration.Services
 
                 string url = $"&wsfunction=core_cohort_create_cohorts";
 
-                var result = await httpService.Post(url, parameters);
+                var result = await httpService.Post(url, parameters, instanceId);
                 string returnMessage = result.result;
                 if (!string.IsNullOrEmpty(returnMessage))
                 {
@@ -321,7 +321,7 @@ namespace Moodle_Migration.Services
             }
         }
 
-        private async Task<bool> UserExistsInMoodle(string username)
+        private async Task<bool> UserExistsInMoodle(string username, int instanceId)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             try
@@ -329,7 +329,7 @@ namespace Moodle_Migration.Services
                 string encodedUsername = WebUtility.UrlEncode(username);
                 string additionalParameters = $"&criteria[0][key]=username&criteria[0][value]={encodedUsername}";
                 string url = $"&wsfunction=core_user_get_users{additionalParameters}";
-                string response = await httpService.Get(url);
+                string response = await httpService.Get(url, instanceId);
 
                 if (string.IsNullOrEmpty(response))
                 {
@@ -358,7 +358,7 @@ namespace Moodle_Migration.Services
             }
         }
 
-        private async Task<string> CreateElfhUser(ElfhUser? elfhUser)
+        private async Task<string> CreateElfhUser(ElfhUser? elfhUser,int instanceId)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
             string result = string.Empty;
@@ -372,7 +372,7 @@ namespace Moodle_Migration.Services
                 string username = elfhUser.UserId.ToString();
 
                 // Check if user already exists in Moodle
-                bool userExists = await UserExistsInMoodle(username);
+                bool userExists = await UserExistsInMoodle(username, instanceId);
                 if (userExists)
                 {
                     result = $"\nUser '{elfhUser.UserName}' already exists in Moodle. Skipping creation.\n";
@@ -404,7 +404,7 @@ namespace Moodle_Migration.Services
 
                 result = $"\nCreating user '{elfhUser.UserName}'\n";
                 await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "Creating user '" + elfhUser.UserName + "' ");
-                var returnResult = await httpService.Post(url, parameters);
+                var returnResult = await httpService.Post(url, parameters, instanceId);
                 await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", "User '" + elfhUser.UserName + "' is created.");
 
                 result += returnResult.result;

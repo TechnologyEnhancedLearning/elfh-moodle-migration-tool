@@ -7,7 +7,7 @@
         /// </summary>
         /// <param name="args">An array of command-line arguments.</param>
         /// <returns>A task representing the asynchronous operation, with a result containing the command output.</returns>
-        Task<string> ProcessCommand(string[] args);
+        Task<string> ProcessCommand(string[] args,int instanceId);
     }
 
 }

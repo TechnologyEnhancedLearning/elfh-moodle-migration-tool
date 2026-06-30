@@ -98,6 +98,25 @@
 <form method="post" asp-action="Execute" asp-controller="Command">
     <div class="row">
         <div class="form-group col-md-9 col-sm-9">
+            <div class="mb-3">
+                <label>Select Moodle Instance:</label>
+
+                <select class="form-control"
+                        name="instanceId"
+                        required>
+
+                    <option value="">
+                        -- Select --
+                    </option>
+
+                    @foreach (var item in ViewBag.Instances)
+                    {
+                        <option value="@item.Id">
+                            @item.Name
+                        </option>
+                    }
+                </select>
+            </div>
             <label for="command">Enter Command:</label>
             <input type="text" class="form-control" id="command" name="command" placeholder="e.g., -h or -u -d" required />
 

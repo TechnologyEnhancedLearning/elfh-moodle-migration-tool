@@ -4,7 +4,7 @@ namespace Moodle_Migration.Services
 {
     public class CourseService(IHttpService httpService) : ICourseService
     {
-        public async Task<string> ProcessCourse(string[] args)
+        public async Task<string> ProcessCourse(string[] args,int instanceId)
         {
             string result = string.Empty;
             if (args.Length < 2)
@@ -20,7 +20,7 @@ namespace Moodle_Migration.Services
                 {
                     case "-d":
                     case "--display":
-                        result = await GetCourses(parameters);
+                        result = await GetCourses(parameters, instanceId);
                         break;
                     case "-c":
                     case "--create":
@@ -37,7 +37,7 @@ namespace Moodle_Migration.Services
             return result;
         }
 
-        private async Task<string> GetCourses(string[] parameters)
+        private async Task<string> GetCourses(string[] parameters, int instanceId)
         {
             string additionalParameters = string.Empty;
 
@@ -53,7 +53,7 @@ namespace Moodle_Migration.Services
             }
 
             string url = $"&wsfunction=core_course_get_courses_by_field{additionalParameters}";
-            return await httpService.Get(url);
+            return await httpService.Get(url, instanceId);
         }
     }
 }
