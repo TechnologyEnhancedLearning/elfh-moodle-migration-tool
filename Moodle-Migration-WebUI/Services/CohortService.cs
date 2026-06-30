@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
+using Moodle_Migration_WebUI.Repositories;
 using System.Text.Json;
 
 namespace Moodle_Migration.Services
@@ -11,22 +12,51 @@ namespace Moodle_Migration.Services
         private readonly IConfiguration _configuration;
         private readonly HttpClient _client;
         private string defaultParameters;
-
-        public CohortService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly LoggingDBContext _context;
+        public CohortService(IHttpClientFactory httpClientFactory, IConfiguration configuration, IHttpContextAccessor httpContextAccessor,LoggingDBContext context)
         {
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
+            _context = context;
+        }
+        private HttpClient CreateClient(int instanceId)
+        {
 
-            // Create an HttpClient instance
-            _client = _httpClientFactory.CreateClient("MoodleClient");
+            if (instanceId == null)
+            {
+                throw new Exception(
+                    "No Moodle instance selected.");
+            }
 
-            defaultParameters = $"?wstoken={_configuration["MoodleApi:wstoken"]}"
-                              + $"&moodlewsrestformat={_configuration["MoodleApi:moodlewsrestformat"]}";
+            var instance =
+                _context.MoodleInstances
+                    .FirstOrDefault(x => x.Id == instanceId);
+
+            if (instance == null)
+            {
+                throw new Exception(
+                    "Invalid Moodle instance.");
+            }
+
+            var client = _httpClientFactory.CreateClient();
+
+            client.BaseAddress =
+                new Uri(instance.BaseUrl);
+
+            defaultParameters =
+                $"?wstoken={instance.WsToken}" +
+                $"&moodlewsrestformat={instance.RestFormat}";
+
+            return client;
         }
 
-        public async Task<List<MoodleCohort>> GetCohortsAsync()
+
+        public async Task<List<MoodleCohort>> GetCohortsAsync(int instanceId)
         {
             var cohorts = new List<MoodleCohort>();
+            var _client = CreateClient(instanceId);
             try
             {
                 string url = "&wsfunction=core_cohort_get_cohorts";
@@ -61,11 +91,11 @@ namespace Moodle_Migration.Services
             return cohorts;
         }
 
-        public async Task<MoodleCohort?> GetCohortByIdAsync(int cohortId)
+        public async Task<MoodleCohort?> GetCohortByIdAsync(int cohortId,int instanceId)
         {
             try
             {
-                var cohorts = await GetCohortsAsync();
+                var cohorts = await GetCohortsAsync(instanceId);
                 return cohorts.FirstOrDefault(c => c.Id == cohortId);
             }
             catch (Exception e)
@@ -75,11 +105,11 @@ namespace Moodle_Migration.Services
             }
         }
 
-        public async Task<MoodleCohort?> GetCohortByIdNumberAsync(string idNumber)
+        public async Task<MoodleCohort?> GetCohortByIdNumberAsync(string idNumber, int instanceId)
         {
             try
             {
-                var cohorts = await GetCohortsAsync();
+                var cohorts = await GetCohortsAsync(instanceId);
                 return cohorts.FirstOrDefault(c => c.IdNumber == idNumber);
             }
             catch (Exception e)
@@ -89,11 +119,11 @@ namespace Moodle_Migration.Services
             }
         }
 
-        public async Task<List<MoodleCohort>> SearchCohortsAsync(string searchTerm)
+        public async Task<List<MoodleCohort>> SearchCohortsAsync(string searchTerm,int instanceId)
         {
             try
             {
-                var allCohorts = await GetCohortsAsync();
+                var allCohorts = await GetCohortsAsync(instanceId);
                 var filtered = allCohorts.Where(c =>
                     c.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
                     c.IdNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)

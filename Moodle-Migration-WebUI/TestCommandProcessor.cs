@@ -4,7 +4,7 @@ namespace Moodle_Migration_WebUI
 {
     public class TestCommandProcessor : ICommandProcessor
     {
-        public async Task<string> ProcessCommand(string[] args)
+        public async Task<string> ProcessCommand(string[] args, int instanceId)
         {
             if (args.Length == 0)
             {

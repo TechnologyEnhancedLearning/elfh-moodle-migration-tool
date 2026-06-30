@@ -31,6 +31,10 @@ namespace Moodle_Migration_WebUI.Controllers
 
         public IActionResult Index()
         {
+            ViewBag.Instances = _dbContext.MoodleInstances
+                                .Where(x => x.IsActive)
+                                .ToList();
+
             return View();
         }
 

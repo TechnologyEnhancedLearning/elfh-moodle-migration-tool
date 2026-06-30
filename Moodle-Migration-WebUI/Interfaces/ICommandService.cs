@@ -2,6 +2,6 @@
 {
     public interface ICommandService
     {
-        Task<string> ExecuteCommand(string input);
+        Task<string> ExecuteCommand(string input,int instanceId);
     }
 }

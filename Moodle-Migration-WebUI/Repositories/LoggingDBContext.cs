@@ -11,5 +11,6 @@ namespace Moodle_Migration_WebUI.Repositories
 
         public DbSet<LoggingModel> MigrationLog { get; set; }
         public DbSet<User> UserTBL { get; set; }
+        public DbSet<MoodleInstance> MoodleInstances { get; set; }
     }
 }

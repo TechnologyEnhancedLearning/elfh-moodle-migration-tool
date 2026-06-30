@@ -17,7 +17,7 @@ namespace Moodle_Migration_WebUI
             this.categoryService = categoryService;
         }
 
-        public async Task<string> ProcessCommand(string[] args)
+        public async Task<string> ProcessCommand(string[] args,int instanceId)
         {
             string result = string.Empty;
             if (args.Length == 0)
@@ -33,15 +33,15 @@ namespace Moodle_Migration_WebUI
                     break;
                 case "-u":
                 case "--user":
-                    result = await userService.ProcessUser(args);                                                                              
+                    result = await userService.ProcessUser(args, instanceId);                                                                              
                     break;
                 case "-c":
                 case "--course":
-                    result = await courseService.ProcessCourse(args);
+                    result = await courseService.ProcessCourse(args, instanceId);
                     break;
                 case "-ct":
                 case "--category":
-                    result = await categoryService.ProcessCategory(args);
+                    result = await categoryService.ProcessCategory(args, instanceId);
                     break;
                 default:
                     Console.WriteLine("No operation specified!");

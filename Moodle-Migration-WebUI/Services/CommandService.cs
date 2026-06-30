@@ -13,7 +13,7 @@ namespace Moodle_Migration_WebUI.Services
             _commandProcessor = commandProcessor;
         }
 
-        public async Task<string> ExecuteCommand(string input)
+        public async Task<string> ExecuteCommand(string input,int instanceId)
         {
             if (string.IsNullOrWhiteSpace(input))
             {
@@ -33,7 +33,7 @@ namespace Moodle_Migration_WebUI.Services
                 args = keyArgs;
             }
             // Call the CommandProcessor
-            return  await _commandProcessor.ProcessCommand(args);
+            return  await _commandProcessor.ProcessCommand(args, instanceId);
 
             // Simulate command processing logic
             //string[] args = input.Split(' ');
