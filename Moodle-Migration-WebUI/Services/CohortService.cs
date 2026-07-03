@@ -41,13 +41,14 @@ namespace Moodle_Migration.Services
             }
 
             var client = _httpClientFactory.CreateClient();
+            string endpoint = _configuration["MoodleApi:RestEndpoint"]!;
 
-            client.BaseAddress =
-                new Uri(instance.BaseUrl);
+            client.BaseAddress = new Uri(
+                $"{instance.BaseUrl.TrimEnd('/')}/{endpoint}");
 
             defaultParameters =
                 $"?wstoken={instance.WsToken}" +
-                $"&moodlewsrestformat={instance.RestFormat}";
+                $"&moodlewsrestformat={_configuration["MoodleApi:moodlewsrestformat"]}";
 
             return client;
         }
