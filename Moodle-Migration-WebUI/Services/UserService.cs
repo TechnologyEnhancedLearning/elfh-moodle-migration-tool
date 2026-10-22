@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Moodle_Migration.Interfaces;
 using Moodle_Migration.Models;
 using Moodle_Migration_WebUI.Hubs;
+using Moodle_Migration_WebUI.Interfaces;
 using System;
 using System.Drawing;
 using System.Net;
@@ -20,7 +21,8 @@ namespace Moodle_Migration.Services
         private readonly IUserGroupRepository userGroupRepository;
         private readonly IHubContext<StatusHub> hubContext;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public UserService(IHttpService _httpService, ICohortService _cohortService, IUserRepository _userRepository, IUserGroupRepository _userGroupRepository, IHubContext<StatusHub> _hubContext, IHttpContextAccessor httpContextAccessor)
+        private readonly ILoggingRepository loggingRepository;
+        public UserService(IHttpService _httpService, ICohortService _cohortService, IUserRepository _userRepository, IUserGroupRepository _userGroupRepository, IHubContext<StatusHub> _hubContext, IHttpContextAccessor httpContextAccessor, ILoggingRepository _loggingRepository)
         {
             httpService = _httpService;
             cohortService = _cohortService;
@@ -28,6 +30,8 @@ namespace Moodle_Migration.Services
             userGroupRepository = _userGroupRepository;
             hubContext = _hubContext;
             _httpContextAccessor = httpContextAccessor;
+            loggingRepository = _loggingRepository;
+
         }
         public async Task<string> ProcessUser(string[] args,int instanceId)
         {
@@ -205,8 +209,11 @@ namespace Moodle_Migration.Services
                 int successCount = 0;
                 int failCount = 0;
 
+                var syncStartDateTime = DateTime.UtcNow;
+                var lastSyncDateTime = await loggingRepository.GetLastUserGroupSyncDateTime(elfhUserGroup.UserGroupId, instanceId);
+
                 var elfhUserList = await userRepository.SearchAsync(
-                   new ElfhUserSearchModel() { SearchUserGroupId = elfhUserGroup.UserGroupId }
+                   new ElfhUserSearchModel() { SearchUserGroupId = elfhUserGroup.UserGroupId, LastSyncDateTime = lastSyncDateTime }
                );
 
                 await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", $"There are {elfhUserList.Count()} elfh user(s) in the user group '{elfhUserGroup.UserGroupName}'.");
@@ -242,6 +249,11 @@ namespace Moodle_Migration.Services
 
                 await hubContext.Clients.User(currentUser).SendAsync("ReceiveStatus", summary);
                 result += $"\n{summary}\n";
+
+                if (failCount == 0)
+                {
+                    await loggingRepository.InsertUserGroupSyncLog(elfhUserGroup.UserGroupId, syncStartDateTime, instanceId);
+                }
             }
             else
             {

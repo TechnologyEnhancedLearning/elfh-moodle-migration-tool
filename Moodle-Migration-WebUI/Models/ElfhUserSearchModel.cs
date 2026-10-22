@@ -14,5 +14,6 @@
         public int Page { get; set; }
         public float PageSize { get; set; }
         public bool IncludeDeletedAccs { get; set; }
+        public DateTime? LastSyncDateTime { get; set; }
     }
 }
