@@ -29,13 +29,14 @@ namespace Moodle_Migration.Repositories
             parameters.Add("@DefaultProjectId", searchModel.DefaultProjectId == 0 ? null : searchModel.DefaultProjectId);
             parameters.Add("@searchUserGroupId", searchModel.SearchUserGroupId == 0 ? null : searchModel.SearchUserGroupId);
             parameters.Add("@searchUserTypeUserGroupId", searchModel.SearchUserTypeUserGroupId);
+            parameters.Add("@LastSyncDateTime", searchModel.LastSyncDateTime);
             parameters.Add("@Page", searchModel.Page == 0 ? 1 : searchModel.Page);
             parameters.Add("@PageSize", searchModel.PageSize == 0 ? 99999 : searchModel.PageSize);
             parameters.Add("@IncludeDeletedAccs", searchModel.IncludeDeletedAccs);
             parameters.Add("@PagesReturned", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-            var elfhUsers = await dbConnection.QueryAsync<ElfhUser>("dbo.proc_UserSearch", parameters, commandType: CommandType.StoredProcedure);
-            int pagesReturned = parameters.Get<int>("@PagesReturned");
+            var elfhUsers = await dbConnection.QueryAsync<ElfhUser>("dbo.proc_UserSearchByUserGroupId", parameters, commandType: CommandType.StoredProcedure);
+           //  int pagesReturned = parameters.Get<int>("@PagesReturned");
             return elfhUsers.Cast<ElfhUser>().ToList();
         }
 
